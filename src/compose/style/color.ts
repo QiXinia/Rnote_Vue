@@ -76,6 +76,17 @@ export class Color {
     return new Color(this.r, this.g, this.b, this.a * factor)
   }
 
+  // HSV colour space used by GTK's GtkColorEditor. h in degrees [0,360),
+  // s and v in [0,1]. Alpha is carried separately.
+  hsv(): { h: number; s: number; v: number } {
+    return rgbToHsv(this.r, this.g, this.b)
+  }
+
+  static fromHsv(h: number, s: number, v: number, a = 1): Color {
+    const { r, g, b } = hsvToRgb(h, s, v)
+    return new Color(r, g, b, a)
+  }
+
   toRgba8(): [number, number, number, number] {
     return [Math.round(this.r * 255), Math.round(this.g * 255), Math.round(this.b * 255), Math.round(this.a * 255)]
   }
@@ -149,6 +160,36 @@ export class Color {
 function clamp01(v: number): number {
   return Math.min(1, Math.max(0, v))
 }
+
+// sRGB (0..1) -> HSV, h in degrees [0,360), s/v in [0,1].
+export function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: number } {
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const d = max - min
+  let h = 0
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6
+    else if (max === g) h = (b - r) / d + 2
+    else h = (r - g) / d + 4
+    h *= 60
+    if (h < 0) h += 360
+  }
+  const s = max === 0 ? 0 : d / max
+  return { h, s, v: max }
+}
+
+// HSV (h in degrees, s/v in [0,1]) -> sRGB (0..1).
+export function hsvToRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
+  const hh = (((h % 360) + 360) % 360) / 60
+  const c = v * s
+  const x = c * (1 - Math.abs((hh % 2) - 1))
+  const m = v - c
+  let r = 0
+  let g = 0
+  let b = 0
+  if (hh < 1) { r = c; g = x } else if (hh < 2) { r = x; g = c } else if (hh < 3) { g = c; b = x } else if (hh < 4) { g = x; b = c } else if (hh < 5) { r = x; b = c } else { r = c; b = x }
+  return { r: r + m, g: g + m, b: b + m }
+}
 function round3(v: number): number {
   return Math.round(v * 1000) / 1000
 }
@@ -176,6 +217,20 @@ export const COLOR_PICKER_SWATCHES: Color[][] = [
   GNOME_REDS,
   GNOME_PURPLES,
   GNOME_BROWNS
+]
+
+// GtkColorChooserWidget default palette (gtkcolorchooserwidget.c):
+// 9 rows, one hue group per row, each with 5 shades laid out light -> dark.
+export const GTK_DEFAULT_PALETTE: Color[][] = [
+  GNOME_BLUES,
+  GNOME_GREENS,
+  GNOME_YELLOWS,
+  GNOME_ORANGES,
+  GNOME_REDS,
+  GNOME_PURPLES,
+  GNOME_BROWNS,
+  GNOME_BRIGHTS,
+  GNOME_DARKS
 ]
 
 // Quick color shortcuts Ctrl+1..9 (rnote default favorites).

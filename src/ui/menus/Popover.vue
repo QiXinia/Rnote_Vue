@@ -41,11 +41,11 @@ async function toggle() {
     // Lay the panel out off-screen at its FINAL width first; otherwise its
     // unconstrained natural width is measured and the resulting left offset is
     // wrong (the popover ends up far from the rail it should point at).
-    popStyle.value = { width: `${props.panelWidth}px`, left: '-9999px', top: '0' }
+    const pw = window.innerWidth <= 640 ? Math.min(props.panelWidth, window.innerWidth - 16) : props.panelWidth
+    popStyle.value = { width: `${pw}px`, left: '-9999px', top: '0' }
     await nextTick()
     const r = triggerEl.value?.getBoundingClientRect()
     if (r) {
-      const pw = props.panelWidth
       const ph = panelEl.value?.offsetHeight ?? 300
       let left: number
       let top: number

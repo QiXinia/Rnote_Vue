@@ -19,7 +19,7 @@ function padFg(c: Color) {
 </script>
 
 <template>
-  <Popover align="right" button-class="color-field-trigger" :panel-width="252">
+  <Popover align="right" button-class="color-field-trigger" :panel-width="312">
     <template #trigger="{ open }">
       <span class="color-swatch" :class="{ checked: open }" :style="{ backgroundColor: current.toCss(), color: padFg(current) }">
         <span v-if="current.a === 0" class="no-color-slash"></span>

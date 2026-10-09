@@ -18,7 +18,42 @@ const tick = computed(() => store.uiTick)
 const target = ref<'stroke' | 'fill'>('stroke')
 const customOpen = ref(false)
 const customBtn = ref<HTMLButtonElement | null>(null)
+const popEl = ref<HTMLElement | null>(null)
 const popPos = ref<Record<string, string>>({})
+let resizeObs: ResizeObserver | null = null
+
+const DESKTOP_POP_WIDTH = 300
+const EDITOR_POP_WIDTH = 380 // GTK editor window is wider (SV plane requests 300px)
+const editorView = ref(false)
+function isNarrow() {
+  return window.innerWidth <= 640
+}
+function popWidth() {
+  if (isNarrow()) return window.innerWidth - 16
+  return editorView.value ? EDITOR_POP_WIDTH : DESKTOP_POP_WIDTH
+}
+function onDialogView(v: string) {
+  editorView.value = v === 'editor'
+  nextTick(() => positionPop(false))
+}
+// Recompute position from the popover's live height; called on open and via
+// ResizeObserver when the dialog switches palette <-> editor (height changes).
+function positionPop(initial = false) {
+  const pop = popEl.value
+  const btn = customBtn.value
+  if (!pop || !btn) return
+  const narrow = isNarrow()
+  const pw = popWidth()
+  if (initial) popPos.value = { width: `${pw}px`, left: '-9999px', top: '0' }
+  const r = btn.getBoundingClientRect()
+  const ph = pop.offsetHeight
+  let top = r.bottom + 6
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 6
+  let left = narrow ? 8 : r.right - pw
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8))
+  top = Math.max(8, Math.min(top, window.innerHeight - ph - 8))
+  popPos.value = { width: `${pw}px`, left: `${left}px`, top: `${top}px` }
+}
 
 async function openCustom() {
   if (customOpen.value) {
@@ -26,16 +61,15 @@ async function openCustom() {
     return
   }
   window.dispatchEvent(new Event('rnote:close-popovers'))
+  editorView.value = false
   customOpen.value = true
   await nextTick()
-  const r = customBtn.value!.getBoundingClientRect()
-  const pw = 268
-  const ph = 350
-  let top = r.bottom + 6
-  if (top + ph > window.innerHeight - 8) top = r.top - ph - 6
-  let left = r.right - pw
-  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8))
-  popPos.value = { left: `${left}px`, top: `${Math.max(8, top)}px` }
+  positionPop(true)
+  await nextTick()
+  positionPop(false)
+  resizeObs?.disconnect()
+  resizeObs = new ResizeObserver(() => positionPop(false))
+  if (popEl.value) resizeObs.observe(popEl.value)
 }
 
 // Exact defaults from rnote-ui/src/colorpicker/mod.rs RnColorPicker::default_color().
@@ -119,8 +153,18 @@ function onKeydown(e: KeyboardEvent) {
     customOpen.value = false
   }
 }
-onMounted(() => window.addEventListener('keydown', onKeydown, true))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown, true)
+  window.addEventListener('resize', onWindowResize)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown, true)
+  window.removeEventListener('resize', onWindowResize)
+  resizeObs?.disconnect()
+})
+function onWindowResize() {
+  if (customOpen.value) positionPop(false)
+}
 </script>
 
 <template>
@@ -165,8 +209,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     <Teleport to="body">
       <template v-if="customOpen">
         <div class="popover-backdrop" @click.stop="customOpen = false" @contextmenu.prevent="customOpen = false"></div>
-        <div class="custom-color-pop" :style="popPos" @click.stop>
-          <ColorDialog :model-value="activeColor" :with-alpha="true" @update:model-value="apply" />
+        <div ref="popEl" class="custom-color-pop" :style="popPos" @click.stop>
+          <ColorDialog :model-value="activeColor" :with-alpha="true" @update:model-value="apply" @view="onDialogView" />
         </div>
       </template>
     </Teleport>
@@ -236,21 +280,84 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
   gap: 6px;
   align-items: center;
 }
+/* GTK `.linked`: the nine setters join into one continuous strip, square
+   inner corners with overlapping 1px borders. */
+.color-setters.linked {
+  gap: 0;
+}
+.color-setters.linked .color-setter {
+  border-radius: 0;
+}
+.color-setters.linked .color-setter + .color-setter {
+  margin-left: -1px;
+}
+.color-setters.linked .color-setter:first-child {
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+}
+.color-setters.linked .color-setter:last-child {
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
 .custom-color-wrap { position: relative; }
 .custom-color-pop {
   position: fixed;
   z-index: 130;
-  padding: 10px;
+  padding: 0;
   background: var(--popover-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-pop);
+  max-height: 82vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .active-caption {
   font-size: 11px;
   color: var(--fg-muted);
 }
 @media (max-width: 640px) {
-  .colorpicker { transform: scale(0.86); transform-origin: top center; }
+  .color-row {
+    gap: 4px;
+    min-height: 40px;
+  }
+  .color-pads {
+    gap: 2px;
+  }
+  .color-pad,
+  .color-setter {
+    width: 28px;
+    height: 28px;
+    background-size: 14px 14px;
+    background-position: 0 0, 7px 7px;
+  }
+  .pad-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .picker-separator {
+    height: 20px;
+  }
+  .custom-color-wrap .btn {
+    width: 30px;
+    height: 30px;
+  }
+  .active-caption {
+    font-size: 10.5px;
+  }
+  .custom-color-pop {
+    max-height: 78vh;
+  }
+}
+@media (max-width: 380px) {
+  .color-pad,
+  .color-setter {
+    width: 24px;
+    height: 24px;
+  }
+  .custom-color-wrap .btn {
+    width: 28px;
+    height: 28px;
+  }
 }
 </style>

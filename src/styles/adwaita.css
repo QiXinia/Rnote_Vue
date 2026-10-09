@@ -89,10 +89,32 @@ body {
   user-select: none;
 }
 
+/* Global reset: every <button> defaults to a flat, borderless libadwaita-style
+   control. Buttons that need chrome opt in via .btn / component classes, so a
+   button missing a class can never fall back to the browser's native 3D look. */
 button {
   font-family: inherit;
   font-size: inherit;
   color: var(--fg);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled {
+  cursor: default;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
 }
 
 /* ---- generic buttons ---- */
