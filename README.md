@@ -1,6 +1,10 @@
 # Rnote — Vue Web Edition
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Deploy to GitHub Pages](https://github.com/QiXinia/Rnote_Vue/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/QiXinia/Rnote_Vue/actions/workflows/deploy-pages.yml)
+
+**▶ Live demo:** <https://qixinia.github.io/Rnote_Vue/> (automatically built and
+deployed from `main` by GitHub Actions).
 
 A browser front-end re-implementation of the open-source handwriting / sketching
 application [**Rnote**](https://github.com/flxzt/rnote) (Rust + GTK4 / libadwaita,
