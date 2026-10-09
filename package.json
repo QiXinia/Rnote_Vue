@@ -1,0 +1,33 @@
+{
+  "name": "rnote-vue",
+  "version": "0.15.0",
+  "private": true,
+  "type": "module",
+  "description": "Rnote re-implemented as a Vue 3 web application (architecture port of flxzt/rnote).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "type-check": "vue-tsc --noEmit",
+    "verify:rnote": "esbuild scripts/verify-rnote-import.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-rnote-import.mjs && node node_modules/.tmp/verify-rnote-import.mjs ../rnote-src/misc",
+    "verify:rng": "esbuild scripts/verify-rng.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-rng.mjs && node node_modules/.tmp/verify-rng.mjs",
+    "verify:desktop-export": "esbuild scripts/verify-desktop-export.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-desktop-export.mjs && node node_modules/.tmp/verify-desktop-export.mjs"
+  },
+  "dependencies": {
+    "culori": "^4.0.2",
+    "jspdf": "^2.5.2",
+    "pdfjs-dist": "^4.10.38",
+    "pinia": "^2.2.6",
+    "svg2pdf.js": "^2.8.1",
+    "vue": "^3.5.13",
+    "vue-i18n": "^10.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.5",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vue-tsc": "^2.2.0"
+  }
+}
