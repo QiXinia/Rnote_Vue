@@ -57,5 +57,16 @@
   "Width of new text boxes": "Width of new text boxes",
   "XOPP export failed": "XOPP export failed",
   "XOPP import failed": "XOPP import failed",
+  "Website": "Website",
+  "Support": "Support",
+  "Report an Issue": "Report an Issue",
+  "Version": "Version",
+  "Developers": "Developers",
+  "Translators": "Translators",
+  "License": "License",
+  "Web Edition": "Web Edition",
+  "An unofficial browser port of Rnote, rebuilt with Vue 3 and TypeScript. The original desktop application is created by Felix Zwettler and the Rnote contributors.": "An unofficial browser port of Rnote, rebuilt with Vue 3 and TypeScript. The original desktop application is created by Felix Zwettler and the Rnote contributors.",
+  "Web port source": "Web port source",
+  "Live demo": "Live demo",
   "Zoom": "Zoom"
 }

@@ -143,6 +143,10 @@ const ICONS: Record<string, string> = {
   'iso-dots':
     '<circle cx="12" cy="4" r="1.2"/><circle cx="4" cy="8.5" r="1.2"/><circle cx="20" cy="8.5" r="1.2"/><circle cx="8" cy="13" r="1.2"/><circle cx="16" cy="13" r="1.2"/><circle cx="12" cy="17.5" r="1.2"/>',
   external: '<path d="M14 5h5v5"/><path d="M19 5l-9 9"/><path d="M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/>',
+  globe:
+    '<circle cx="12" cy="12" r="9"/><path d="M3.5 12h17"/><path d="M12 3c2.6 2.6 2.6 15.4 0 18M12 3c-2.6 2.6-2.6 15.4 0 18"/>',
+  help: '<path d="M4 5.5h16a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5H9l-4 3v-3H4a.5.5 0 0 1-.5-.5V6a.5.5 0 0 1 .5-.5Z"/><path d="M9.8 9.3a2.2 2.2 0 1 1 3 2c-.6.3-.8.7-.8 1.3"/><path d="M12 15h.01"/>',
+  bug: '<rect x="8.5" y="7" width="7" height="12" rx="3.5"/><path d="M12 7.5V19M9 11H5M9 14.5H5.5M9 18H6M15 11h4M15 14.5h3.5M15 18h3M9.5 7.5 8 5.2M14.5 7.5 16 5.2"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
   refresh: '<path d="M4 12a8 8 0 1 1 2.5 5.8"/><path d="M4 18v-4h4"/>',

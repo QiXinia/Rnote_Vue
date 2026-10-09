@@ -57,6 +57,17 @@
   "Width of new text boxes": "新文本框的宽度",
   "XOPP export failed": "XOPP 导出失败",
   "XOPP import failed": "XOPP 导入失败",
+  "Website": "网站",
+  "Support": "支持",
+  "Report an Issue": "报告问题",
+  "Version": "版本",
+  "Developers": "开发者",
+  "Translators": "翻译者",
+  "License": "许可证",
+  "Web Edition": "网页版",
+  "An unofficial browser port of Rnote, rebuilt with Vue 3 and TypeScript. The original desktop application is created by Felix Zwettler and the Rnote contributors.": "这是 Rnote 的非官方浏览器移植，使用 Vue 3 与 TypeScript 重构。原始桌面应用由 Felix Zwettler 及 Rnote 贡献者开发。",
+  "Web port source": "网页版源码",
+  "Live demo": "在线演示",
   "Zoom to Real Size": "缩放至实际大小",
   "Zoom": "缩放"
 }

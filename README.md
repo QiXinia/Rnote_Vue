@@ -11,7 +11,7 @@ application [**Rnote**](https://github.com/flxzt/rnote) (Rust + GTK4 / libadwait
 GPL-3.0), rebuilt with **Vue 3 + Vite + TypeScript + Pinia**. The goal is a
 **1:1 port of the desktop application's architecture and interaction model**.
 
-Upstream author: **Florian Rass (flxzt)**. This project is a web port of the
+Upstream author: **Felix Zwettler (flxzt)**. This project is a web port of the
 `rnote-compose`, `rnote-engine` and `rnote-ui` crates and is released under the
 **GNU General Public License v3.0**, the same license as Rnote.
 
@@ -236,6 +236,6 @@ should have received a copy of the GNU General Public License along with this
 program; see [LICENSE](LICENSE).
 
 This is a derivative work of [Rnote](https://github.com/flxzt/rnote) by
-Florian Rass and other Rnote contributors, used under GPL-3.0. All upstream
+Felix Zwettler and other Rnote contributors, used under GPL-3.0. All upstream
 design, algorithms and the `.rnote` format remain the property of their
 respective authors.

@@ -4,6 +4,18 @@ import App from './App.vue'
 import { i18n } from './i18n'
 import { vTip } from './ui/tooltip/rn-tooltip'
 import './styles/adwaita.css'
+// Official upstream Rnote application icon. Imported as an asset so Vite emits
+// a base-aware, content-hashed file on the web build and inlines a data: URI in
+// the single-file CDN build (which has no public/ dir).
+import rnoteIconUrl from './assets/rnote-logo.svg'
+
+// Set the favicon from the bundled asset (works with sub-path base and the
+// inlined single-file CDN build).
+const favicon = document.createElement('link')
+favicon.rel = 'icon'
+favicon.type = 'image/svg+xml'
+favicon.href = rnoteIconUrl
+document.head.appendChild(favicon)
 
 const app = createApp(App)
 app.use(createPinia())
