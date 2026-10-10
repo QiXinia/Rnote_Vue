@@ -158,6 +158,7 @@
 "Export Engine _Config": "Экспортировать конфигурацию движка",
 "Export Engine _State": "Экспортировать состояние движка",
 "Export File": "Экспортировать файл",
+"Export Files Stem Name": "Базовое имя экспортируемых файлов",
 "Export Format": "Формат для экспорта",
 "Export Preferences": "Настройки экспорта",
 "Export Selection": "Экспортировать выделение",

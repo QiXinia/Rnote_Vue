@@ -166,7 +166,7 @@ export const useAppStore = defineStore('app', () => {
     }
     // A blank tab keeps the desktop default camera (infinite canvas, origin at
     // the 96px overshoot), exactly like the desktop.
-    const tab: Tab = { id: tabCounter++, engine: eng, name: name ?? 'Untitled Rnote', dirty: false }
+    const tab: Tab = { id: tabCounter++, engine: eng, name: name ?? 'New Document', dirty: false }
     tabs.value = [...tabs.value, tab]
     activeId.value = tab.id
     uiTick.value++

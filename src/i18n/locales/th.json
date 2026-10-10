@@ -149,6 +149,7 @@
 "Export Engine _Config": "ส่งออกการตั้งค่าเอนจิน",
 "Export Engine _State": "ส่งออกสภาพของเอนจิน",
 "Export File": "ส่งออกไฟล์",
+"Export Files Stem Name": "ชื่อไฟล์ของหน้าเอกสารที่ถูกส่งออก",
 "Export Format": "ฟอร์แมตเอกสาร",
 "Export Preferences": "ตั้งค่าการส่งออก",
 "Export Selection": "ส่งออกสิ่งที่เลือก",

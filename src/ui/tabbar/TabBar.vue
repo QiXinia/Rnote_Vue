@@ -95,7 +95,7 @@ function onDragEnd() {
         @dragend="onDragEnd"
       >
         <RnoteIcon v-if="tab.dirty" name="dot" class="tab-dot" />
-        <span class="tab-title">{{ tab.name }}</span>
+        <span class="tab-title">{{ tab.name === 'New Document' ? t('New Document') : tab.name }}</span>
         <span class="tab-close" @click.stop="store.closeTab(tab.id)">
           <RnoteIcon name="window-close" />
         </span>

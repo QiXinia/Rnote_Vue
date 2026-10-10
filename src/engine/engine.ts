@@ -56,7 +56,7 @@ export class Engine {
   clipboardFormat: 'rnote-vue' | null = null
 
   // document identity / unsaved state
-  fileName = 'Untitled Rnote'
+  fileName = 'New Document'
   filePath: string | null = null
   dirty = false
   savedSnapshotKey = ''
@@ -319,7 +319,7 @@ export class Engine {
     this.camera = new Camera()
     this.store.clear()
     this.history.clear()
-    this.fileName = 'Untitled Rnote'
+    this.fileName = 'New Document'
     this.filePath = null
     this.dirty = false
     this.notify()

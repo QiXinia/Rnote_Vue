@@ -155,7 +155,8 @@ const CONTEXT_PREFIX = {
   'used in string representation of the current selected color': 'colorPart.',
   'as in computer chip': 'word.',
   'as in plant': 'word.',
-  'as in terminal software': 'word.'
+  'as in terminal software': 'word.',
+  'When pages are exported this is the base name, followed by: - Page 0,1,..': ''
 }
 
 function buildMap(entries, isSource) {
@@ -171,6 +172,7 @@ function buildMap(entries, isSource) {
         keyPrefix = CONTEXT_PREFIX[e.ctxt]
       } else {
         skippedContext++
+        if (isSource) console.warn('  [source] unmapped context', JSON.stringify(e.ctxt), 'for msgid', JSON.stringify(msgid).slice(0, 90))
         continue
       }
     }
@@ -234,15 +236,18 @@ for (const file of poFiles) {
   const text = readFileSync(join(PO_DIR, file), 'utf8')
   const { map } = buildMap(parsePo(text), false)
   mergeExtra(map, localeCode)
-  if (Object.keys(map).length === 0) {
-    console.warn(`  ${localeCode}: no translations, skipping`)
-    continue
+  const n = Object.keys(map).length
+  if (n === 0) {
+    // Upstream can ship an empty placeholder PO (a language added to LINGUAS but
+    // not translated on Weblate yet). Still emit an empty bundle and list it so
+    // the selector matches LINGUAS exactly; vue-i18n then falls back to English.
+    console.warn(`  ${localeCode}: 0 translations yet (listed, falls back to English)`)
   }
   writeFileSync(join(OUT_DIR, `${localeCode}.json`), sortedStringify(map))
   totalLangs++
   const info = LANGUAGE_INFO[poCode]
   if (!info) console.warn(`  missing language info for ${poCode}`)
-  manifest.push({ code: localeCode, poCode, count: Object.keys(map).length, info })
+  manifest.push({ code: localeCode, poCode, count: n, info })
 }
 
 // languages.ts (en first, then alphabetical by English name).

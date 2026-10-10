@@ -11,8 +11,10 @@ const { t } = useI18n()
 
 const docName = computed(() => {
   const n = store.activeTab?.name
-  if (!n) return t('New Document')
-  return n === 'Untitled Rnote' ? t('Untitled Rnote') : n
+  // An unsaved blank document uses the desktop gettext("New Document") title;
+  // opened / saved files keep their real (untranslated) file name.
+  if (!n || n === 'New Document') return t('New Document')
+  return n
 })
 const zoomLabel = computed(() => `${store.engine?.camera.zoomPercent ?? 100}%`)
 

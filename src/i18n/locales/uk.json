@@ -165,6 +165,7 @@
 "Export Engine _Config": "Експорт _конфігурації рушія",
 "Export Engine _State": "Експортувати _стан рушія",
 "Export File": "Експортувати файл",
+"Export Files Stem Name": "Префікс назви файлів для експорту",
 "Export Format": "Формат експорту",
 "Export Preferences": "Параметри експорту",
 "Export Selection": "Експортувати вибране",

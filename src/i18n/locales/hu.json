@@ -165,6 +165,7 @@
 "Export Engine _Config": "Motor _beállításainak exportálása",
 "Export Engine _State": "Motor _állapotának exportálása",
 "Export File": "Fájl exportálása",
+"Export Files Stem Name": "Exportált fájlok alapneve",
 "Export Format": "Exportálási formátum",
 "Export Preferences": "Beállítások exportálása",
 "Export Selection": "Kijelölés exportálása",

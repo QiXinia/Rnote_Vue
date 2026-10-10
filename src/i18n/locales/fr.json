@@ -162,6 +162,7 @@
 "Export Engine _Config": "Exporter la _configuration interne",
 "Export Engine _State": "Exporter le _statut interne",
 "Export File": "Fichier de destination",
+"Export Files Stem Name": "Préfixe des fichiers à exporter",
 "Export Format": "Format d’exportation",
 "Export Preferences": "Paramètres d’exportation",
 "Export Selection": "Exporter la sélection",

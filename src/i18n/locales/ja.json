@@ -142,6 +142,7 @@
 "Export Engine _Config": "エンジンの設定をエクスポート(_C)",
 "Export Engine _State": "エンジンの状態をエクスポート(_S)",
 "Export File": "エクスポート先ファイル",
+"Export Files Stem Name": "拡張子を除くファイル名",
 "Export Format": "エクスポートの形式",
 "Export Preferences": "エクスポートの設定",
 "Export Selection": "選択範囲をエクスポート",

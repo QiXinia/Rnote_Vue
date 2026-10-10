@@ -71,6 +71,7 @@
 "Export Engine _Config": "خروجی‌گیری پیکربندی موتور",
 "Export Engine _State": "خروجی‌گیری وضعیت موتور",
 "Export File": "خروجی گرفتن از فایل",
+"Export Files Stem Name": "نام اصلی فایل‌ها برای صادر کردن",
 "Export Format": "فرمت خروجی",
 "Export Preferences": "تنظیمات خروجی",
 "Export Selection": "خروجی گرفتن از قسمت انتخاب‌شده",
