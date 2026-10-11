@@ -15,7 +15,10 @@
   --headerbar-bg: #ebebeb;
   --headerbar-backdrop: #f0f0f0;
   --sidebar-bg: #e6e6e6;
-  --view-bg: #d2d2d5;
+  /* Port of GTK .canvas_scroller background (rgba(120,120,130,0.2) over the
+     window background): shown outside the document and at panned edges. Opaque
+     so it composites identically regardless of stacking. */
+  --view-bg: #e0e0e2;
   --card-bg: #ffffff;
   --popover-bg: #ffffff;
   --button-bg: #ffffff;
@@ -45,7 +48,7 @@
   --headerbar-bg: #1e1c24;
   --headerbar-backdrop: #221f29;
   --sidebar-bg: #26242d;
-  --view-bg: #24222b;
+  --view-bg: #35333c;
   --card-bg: #302d38;
   --popover-bg: #302d38;
   --button-bg: #3a3742;

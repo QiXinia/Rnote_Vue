@@ -10,8 +10,12 @@ import { gestureState } from './gestureState'
 import { ContentTiles } from './content-tiles'
 import type { Stroke } from '../strokes/stroke'
 
-export const WORKSPACE_COLOR_LIGHT = '#d2d2d5'
-export const WORKSPACE_COLOR_DARK = '#24222b'
+// Workspace / out-of-page background, matching GTK .canvas_scroller
+// rgba(120,120,130,0.2) composited over the window background (light #fafafa /
+// dark #24222b). The same translucent colour lives on .canvas-wrapper and
+// shows through the transparent canvas edges while panning.
+export const WORKSPACE_COLOR_LIGHT = '#e0e0e2'
+export const WORKSPACE_COLOR_DARK = '#35333c'
 
 type SelectMode = false | 'marquee' | 'translate' | 'transform'
 
@@ -66,6 +70,10 @@ export class Renderer {
     const ctx = this.ctx
     const dpr = this.canvas.width / Math.max(1, this.engine.camera.viewportSize.x)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
+    // The main context is created with alpha:false, so clearRect would paint
+    // black. Fill the area the panned snapshot no longer covers with the
+    // workspace colour (GTK .canvas_scroller rgba(120,120,130,0.2) composited
+    // over the window bg), then blit the offset snapshot.
     ctx.fillStyle = this.dark ? WORKSPACE_COLOR_DARK : WORKSPACE_COLOR_LIGHT
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
     ctx.drawImage(this.panCache!, this.panDX * dpr, this.panDY * dpr)
