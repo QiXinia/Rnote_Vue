@@ -43,17 +43,20 @@ export class ContentTiles {
     )
   }
 
-  private bucketFor(eff: number) {
-    return Math.max(0.5, Math.ceil(eff * 2) / 2)
-  }
+  // Tiles are rasterised at the exact device scale. A small tolerance lets small
+  // zoom changes reuse the existing tiles (cheap drawImage scale); a larger zoom
+  // (e.g. after a pinch) rebuilds. Rasterising at the exact scale means a freshly
+  // committed stroke's tile matches the live overlay pixel-for-pixel, instead of
+  // differing via a coarse 0.5-step resolution bucket (which "popped"/flashed on
+  // quick touch strokes after zooming).
+  private static readonly SCALE_TOLERANCE = 0.1
 
   // (Re)build tiles covering `viewport` until the budget is used. Returns true
   // when every tile in the viewport is ready.
   update(viewport: Aabb, eff: number, budgetMs: number): boolean {
-    const bucket = this.bucketFor(eff)
-    if (this.scale !== bucket) {
+    if (this.scale === 0 || Math.abs(this.scale - eff) > this.scale * ContentTiles.SCALE_TOLERANCE) {
       this.tiles.clear()
-      this.scale = bucket
+      this.scale = eff
     }
     const region = viewport.extend_by(TILE_MARGIN)
     const i0 = Math.floor(region.min.x / TILE_DOC)
@@ -70,30 +73,31 @@ export class ContentTiles {
             allBuilt = false
             continue
           }
-          this.tiles.set(k, this.buildTile(i, j, bucket))
+          this.tiles.set(k, this.buildTile(i, j))
         }
       }
     }
     return allBuilt
   }
 
-  private buildTile(i: number, j: number, bucket: number): HTMLCanvasElement {
+  private buildTile(i: number, j: number): HTMLCanvasElement {
     const ta = ContentTiles.tileAabb(i, j)
-    const px = Math.max(2, Math.round(TILE_DOC * bucket))
+    const s = this.scale
+    const px = Math.max(2, Math.round(TILE_DOC * s))
     const c = document.createElement('canvas')
     c.width = px
     c.height = px
     const x = c.getContext('2d')!
-    x.scale(bucket, bucket)
+    x.scale(s, s)
     x.translate(-ta.min.x, -ta.min.y)
     x.beginPath()
     x.rect(ta.min.x, ta.min.y, TILE_DOC, TILE_DOC)
     x.clip()
-    for (const s of this.engine.store.ordered()) {
-      const b = s.bounds()
+    for (const st of this.engine.store.ordered()) {
+      const b = st.bounds()
       if (!b.zero() && !ta.intersects(b)) continue
       x.save()
-      s.draw(x, bucket)
+      st.draw(x, s)
       x.restore()
     }
     return c

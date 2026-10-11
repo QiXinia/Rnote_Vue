@@ -20,6 +20,8 @@ export enum BrushStyleKind {
 }
 
 const BRUSH_RASTER_LIMIT = 4096
+// Reuse the raster sprite while the device scale moves within this fraction.
+const RASTER_SCALE_TOLERANCE = 0.1
 
 export class BrushStroke implements Stroke {
   kind = 'brush' as const
@@ -89,21 +91,27 @@ export class BrushStroke implements Stroke {
     const path = this.cachedPath
     if (!path) return null
     const b = this.bounds()
-    const bucket = Math.ceil(eff * 2) / 2
+    // Rasterise at the exact device scale so a freshly committed stroke matches
+    // the live overlay pixel-for-pixel; the previous coarse 0.5-step bucket made
+    // the sprite differ from the overlay after zooming, which flashed on quick
+    // touch strokes.
+    const target = Math.max(eff, 1)
     // While a zoom gesture is active, keep the existing sprite (it gets scaled,
     // possibly slightly soft) instead of re-rasterising every frame. The sprite
     // is rebuilt at the final scale once the gesture settles.
     if (this.raster && gestureState.zooming) return this.raster
     // During a normal draw (allowUpgrade=false) always reuse the existing sprite,
-    // even if its bucket is below the current scale: the budgeted warm() pass
+    // even if its scale is below the current scale: the budgeted warm() pass
     // upgrades it off the critical path, so the stroke stays visible (soft) and
     // never blinks out. Only warm()/first build may (re-)rasterise.
     if (this.raster && !allowUpgrade) return this.raster
-    if (this.raster && this.rasterScale >= bucket) return this.raster
+    if (this.raster && Math.abs(this.rasterScale - target) <= this.rasterScale * RASTER_SCALE_TOLERANCE) {
+      return this.raster
+    }
     const pad = 2
     const wDoc = b.width() + pad * 2
     const hDoc = b.height() + pad * 2
-    let scale = bucket
+    let scale = target
     let tw = Math.round(wDoc * scale)
     let th = Math.round(hDoc * scale)
     if (Math.max(tw, th) > BRUSH_RASTER_LIMIT) {
@@ -125,7 +133,7 @@ export class BrushStroke implements Stroke {
       cc.fill(path, 'nonzero')
     }
     this.raster = c
-    this.rasterScale = bucket
+    this.rasterScale = scale
     return c
   }
 
@@ -150,8 +158,8 @@ export class BrushStroke implements Stroke {
   }
 
   isWarm(eff: number) {
-    const bucket = Math.ceil(Math.max(eff, 1) * 2) / 2
-    return !!(this.raster && this.rasterScale >= bucket)
+    const target = Math.max(eff, 1)
+    return !!(this.raster && Math.abs(this.rasterScale - target) <= this.rasterScale * RASTER_SCALE_TOLERANCE)
   }
 
   hasRaster() {
