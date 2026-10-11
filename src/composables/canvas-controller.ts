@@ -657,6 +657,17 @@ export class CanvasController {
       e.preventDefault()
       return
     }
+    // win.new-tab / win.active-tab-close (GTK accels <Ctrl>t / <Ctrl>w)
+    if (ctrl && key === 't' && !e.shiftKey) {
+      this.store.newTab()
+      e.preventDefault()
+      return
+    }
+    if (ctrl && key === 'w') {
+      if (this.store.activeId != null) this.store.closeTab(this.store.activeId)
+      e.preventDefault()
+      return
+    }
     if (ctrl && key === 'z' && !e.shiftKey) {
       eng.history.undo()
       this.requestFrame()

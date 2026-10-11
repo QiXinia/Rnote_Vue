@@ -12,6 +12,13 @@
 import { Vec2, catmullRom, clamp, lerp } from '../geometry'
 import { Aabb } from '../geometry/aabb'
 
+// Desktop 0.15 serialises Vec2 as a JSON array [x, y]; the web/object form is
+// { x, y }. Accept both.
+function asVec2(o: any): Vec2 {
+  if (Array.isArray(o)) return new Vec2(o[0], o[1])
+  return new Vec2(o?.x ?? 0, o?.y ?? 0)
+}
+
 export class Element {
   pos: Vec2
   pressure: number
@@ -26,10 +33,10 @@ export class Element {
   }
 
   toJSON() {
-    return { pos: { x: round3(this.pos.x), y: round3(this.pos.y) }, pressure: round3(this.pressure) }
+    return { pos: [round3(this.pos.x), round3(this.pos.y)], pressure: round3(this.pressure) }
   }
   static fromJSON(o: any): Element {
-    return new Element(new Vec2(o.pos.x, o.pos.y), o.pressure ?? 0.5)
+    return new Element(asVec2(o.pos), o.pressure ?? 0.5)
   }
 }
 
@@ -39,8 +46,8 @@ export enum SegmentType {
   CubBezTo = 'cub_bez_to'
 }
 
-function vec3(v: Vec2) {
-  return { x: round3(v.x), y: round3(v.y) }
+function vec3(v: Vec2): [number, number] {
+  return [round3(v.x), round3(v.y)]
 }
 
 // A single pen-path segment. Mirrors rnote-compose penpath::Segment:
@@ -80,14 +87,14 @@ export class Segment {
     const quad = o.quadbezto ?? o.quadbez
     if (quad) {
       return new Segment(SegmentType.QuadBezTo, Element.fromJSON(quad.end), [
-        new Vec2(quad.cp.x, quad.cp.y)
+        asVec2(quad.cp)
       ])
     }
     const cub = o.cubbezto ?? o.cubbez
     if (cub) {
       return new Segment(SegmentType.CubBezTo, Element.fromJSON(cub.end), [
-        new Vec2(cub.cp1.x, cub.cp1.y),
-        new Vec2(cub.cp2.x, cub.cp2.y)
+        asVec2(cub.cp1),
+        asVec2(cub.cp2)
       ])
     }
     return null

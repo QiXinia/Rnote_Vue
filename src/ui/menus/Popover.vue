@@ -29,8 +29,19 @@ function closeFromEvent(e: Event) {
   if (src && panelEl.value && panelEl.value.contains(src)) return
   open.value = false
 }
-onMounted(() => window.addEventListener(CloseEventName, closeFromEvent))
-onBeforeUnmount(() => window.removeEventListener(CloseEventName, closeFromEvent))
+function onKeydown(e: KeyboardEvent) {
+  // GTK popovers dismiss on Escape. A nested RnSelect that is open handles
+  // Escape itself and stops propagation, so it closes before this popover.
+  if (e.key === 'Escape' && open.value) open.value = false
+}
+onMounted(() => {
+  window.addEventListener(CloseEventName, closeFromEvent)
+  window.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener(CloseEventName, closeFromEvent)
+  window.removeEventListener('keydown', onKeydown)
+})
 
 async function toggle() {
   if (!open.value) window.dispatchEvent(new CustomEvent(CloseEventName, { detail: triggerEl.value }))

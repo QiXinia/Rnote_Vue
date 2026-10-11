@@ -43,11 +43,23 @@ function closeFromEvent(e: Event) {
   if (src && panelEl.value && panelEl.value.contains(src)) return
   open.value = false
 }
+function onDocKey(e: KeyboardEvent) {
+  // libadwaita popovers dismiss on Escape. Use capture + stopPropagation so an
+  // open combo closes first without also dismissing a parent Popover.
+  if (e.key === 'Escape' && open.value) {
+    open.value = false
+    e.stopPropagation()
+  }
+}
 onMounted(() => {
   window.addEventListener(CloseName, closeFromEvent)
+  window.addEventListener('keydown', onDocKey, true)
   syncSelected()
 })
-onBeforeUnmount(() => window.removeEventListener(CloseName, closeFromEvent))
+onBeforeUnmount(() => {
+  window.removeEventListener(CloseName, closeFromEvent)
+  window.removeEventListener('keydown', onDocKey, true)
+})
 
 async function toggle() {
   if (props.disabled) return
