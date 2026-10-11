@@ -143,6 +143,11 @@ export class Renderer {
   invalidateTiles() {
     this.tiles!.invalidateAll()
   }
+
+  // Local invalidation for a single added/changed stroke (see ContentTiles).
+  invalidateRegion(bounds: Aabb) {
+    this.tiles!.invalidateRegion(bounds)
+  }
   // Background warm-up entry: build tiles over the viewport plus a read-ahead
   // margin (the normal scroll direction) within a per-frame budget. Returns true
   // when the whole region is ready.

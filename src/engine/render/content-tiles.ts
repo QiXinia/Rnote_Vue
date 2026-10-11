@@ -126,4 +126,21 @@ export class ContentTiles {
     this.tiles.clear()
     this.scale = 0
   }
+
+  // Drop only the tiles intersecting `bounds` (right after one stroke is added
+  // or changed), keeping the resolution bucket and every other tile intact.
+  // Invalidating the whole cache on every stroke commit forced a full-screen
+  // direct-draw + rebuild, which read as a one-frame flash.
+  invalidateRegion(bounds: Aabb) {
+    if (!bounds || bounds.zero()) return
+    const region = bounds.extend_by(12)
+    const i0 = Math.floor(region.min.x / TILE_DOC)
+    const i1 = Math.floor(region.max.x / TILE_DOC)
+    const j0 = Math.floor(region.min.y / TILE_DOC)
+    const j1 = Math.floor(region.max.y / TILE_DOC)
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) this.tiles.delete(this.key(i, j))
+    }
+    // this.scale is preserved: the zoom / resolution bucket did not change.
+  }
 }

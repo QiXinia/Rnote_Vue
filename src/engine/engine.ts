@@ -64,17 +64,17 @@ export class Engine {
   onChange: (() => void) | null = null
   onRequestRender: (() => void) | null = null
   onSnapshotLoaded: (() => void) | null = null
-  onContentMutated: (() => void) | null = null
+  onContentMutated: ((bounds?: Aabb) => void) | null = null
   onToast: ((msg: string) => void) | null = null
 
   constructor() {
     this.history.onChange = () => this.notify()
   }
 
-  notify() {
+  notify(contentBounds?: Aabb) {
     this.dirty = true
     this.onChange?.()
-    this.onContentMutated?.()
+    this.onContentMutated?.(contentBounds)
     this.onRequestRender?.()
   }
 
@@ -166,7 +166,9 @@ export class Engine {
       undo: () => this.store.remove(id),
       redo: () => this.store.addStroke(stroke, select)
     })
-    this.notify()
+    // Local tile invalidation: only tiles under the new stroke are rebuilt, so
+    // committing a stroke never re-rasterises (and flashes) the whole canvas.
+    this.notify(stroke.bounds())
   }
 
   commitAddStrokes(strokes: Stroke[]) {
@@ -178,7 +180,9 @@ export class Engine {
       undo: () => this.store.removeStrokes(ids),
       redo: () => this.store.addStrokes(strokes)
     })
-    this.notify()
+    let combined: Aabb | null = null
+    for (const s of strokes) combined = combined ? combined.union(s.bounds()) : s.bounds().clone()
+    this.notify(combined ?? undefined)
   }
 
   recordTransform(ids: number[], before: Map<number, any>, label = 'Transform Strokes', coalesceKey?: string) {

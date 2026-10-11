@@ -187,7 +187,8 @@ export class CanvasController {
       this.renderer?.invalidateTiles()
       this.scheduleWarmUp()
     }
-    eng.onContentMutated = () => this.renderer?.invalidateTiles()
+    eng.onContentMutated = (bounds) =>
+      bounds ? this.renderer?.invalidateRegion(bounds) : this.renderer?.invalidateTiles()
     this.scheduleWarmUp()
   }
 
