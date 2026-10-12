@@ -50,8 +50,7 @@ function zoomReset() {
 function fitWidth() {
   const e = store.engine
   if (!e) return
-  const bounds = e.contentBounds() ?? e.document.pageBounds(0)
-  e.camera.fitWidth(bounds)
+  e.camera.fitToWidth(e.document.width)
   store.bump()
 }
 function realSize() {
@@ -74,7 +73,7 @@ function toggleSetting(key: 'snapPositions' | 'respectBordersWhenPasting' | 'pen
           <RnoteIcon name="workspaces" />
         </button>
         <button class="btn header-icon" v-tip="t('New Tab')" @click="newTab"><RnoteIcon name="plus" /></button>
-        <Popover icon="tab-overview" button-class="header-icon" align="left">
+        <Popover icon="tab-overview" button-class="header-icon" align="left" menu-id="overview">
           <div class="tab-overview-menu">
             <div class="menu-section-label">{{ t('Documents') }}</div>
             <button
@@ -111,7 +110,7 @@ function toggleSetting(key: 'snapPositions' | 'respectBordersWhenPasting' | 'pen
           <RnoteIcon name="sidebar" />
         </button>
 
-        <Popover icon="canvasmenu" button-class="header-icon" align="right">
+        <Popover icon="canvasmenu" button-class="header-icon" align="right" menu-id="canvasmenu">
           <div class="canvas-menu">
             <div class="zoom-quickrow">
               <button class="btn" v-tip="t('Zoom out')" @click="zoomOut"><RnoteIcon name="zoom-out" /></button>
@@ -136,7 +135,7 @@ function toggleSetting(key: 'snapPositions' | 'respectBordersWhenPasting' | 'pen
           </div>
         </Popover>
 
-        <Popover icon="app-menu" button-class="header-icon" align="right">
+        <Popover icon="app-menu" button-class="header-icon" align="right" menu-id="appmenu">
           <template #default="{ close }">
             <div class="menu-section-label">{{ t('File') }}</div>
             <button class="menu-item" @click="store.newTab(); close()"><RnoteIcon name="tab-new" class="sm" /><span class="menu-text">{{ t('_New') }}</span><span class="accel">Ctrl+T</span></button>

@@ -30,6 +30,7 @@ const panelEl = ref<HTMLElement | null>(null)
 const popStyle = ref<Record<string, string>>({})
 
 const selected = ref<RnSelectOption | undefined>(undefined)
+const activeIndex = ref(0)
 function syncSelected() {
   selected.value = props.options.find((o) => o.value === props.modelValue)
 }
@@ -67,6 +68,8 @@ async function toggle() {
   open.value = !open.value
   if (open.value) {
     syncSelected()
+    const idx = props.options.findIndex((o) => o.value === props.modelValue)
+    activeIndex.value = idx >= 0 ? idx : 0
     await nextTick()
     const r = triggerEl.value!.getBoundingClientRect()
     const pw = props.width
@@ -84,10 +87,34 @@ function choose(o: RnSelectOption) {
   selected.value = o
   open.value = false
 }
+function scrollActive() {
+  void nextTick(() => {
+    panelEl.value?.querySelectorAll<HTMLElement>('.rn-option')[activeIndex.value]?.scrollIntoView({ block: 'nearest' })
+  })
+}
 function onKey(e: KeyboardEvent) {
-  if (!open.value && (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown')) {
+  const n = props.options.length
+  if (!open.value) {
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      void toggle()
+    }
+    return
+  }
+  // Open combo: arrow keys move the highlighted row, Enter/Space picks it
+  // (mirrors libadwaita AdwComboRow popover navigation).
+  if (e.key === 'ArrowDown') {
+    e.preventDefault(); activeIndex.value = (activeIndex.value + 1) % n; scrollActive()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault(); activeIndex.value = (activeIndex.value - 1 + n) % n; scrollActive()
+  } else if (e.key === 'Home') {
+    e.preventDefault(); activeIndex.value = 0; scrollActive()
+  } else if (e.key === 'End') {
+    e.preventDefault(); activeIndex.value = n - 1; scrollActive()
+  } else if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
-    toggle()
+    const o = props.options[activeIndex.value]
+    if (o) choose(o)
   }
 }
 defineExpose({ close: () => (open.value = false) })
@@ -114,13 +141,14 @@ defineExpose({ close: () => (open.value = false) })
       <div class="popover-backdrop" @click.stop="open = false" @contextmenu.prevent="open = false"></div>
       <div ref="panelEl" class="rn-select-pop" :style="popStyle" @click.stop>
         <button
-          v-for="o in options"
+          v-for="(o, i) in options"
           :key="String(o.value)"
           type="button"
           class="rn-option"
           :data-value="String(o.value)"
-          :class="{ active: o.value === modelValue }"
+          :class="{ active: o.value === modelValue, keyhover: open && i === activeIndex }"
           @click="choose(o)"
+          @mousemove="activeIndex = i"
         >
           <RnoteIcon v-if="o.icon" :name="o.icon" class="opt-icon" />
           <span class="opt-label">{{ o.label }}</span>
@@ -208,7 +236,8 @@ defineExpose({ close: () => (open.value = false) })
   cursor: pointer;
   text-align: left;
 }
-.rn-option:hover {
+.rn-option:hover,
+.rn-option.keyhover {
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
 .rn-option:active {

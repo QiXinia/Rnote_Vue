@@ -4,7 +4,8 @@
 
 import { reactive } from 'vue'
 import { Vec2 } from '../compose/geometry'
-import { Layout } from '../engine/document/layout'
+import { Layout, isFixedSize } from '../engine/document/layout'
+import { Camera } from '../engine/camera/camera'
 import { Renderer } from '../engine/render/renderer'
 import { gestureState } from '../engine/render/gestureState'
 import { setImageFrameNotifier } from '../engine/strokes/imagestroke'
@@ -592,7 +593,11 @@ export class CanvasController {
       // Zooming needs the full-quality vector pass, not the panned bitmap.
       if (this.wheelPanTimer) { clearTimeout(this.wheelPanTimer); this.wheelPanTimer = null }
       this.renderer?.endPan()
-      const factor = Math.exp(-e.deltaY * 0.0015)
+      // Normalise the wheel delta to GTK scroll units (one notch ~= 1 line) and
+      // apply the desktop formula: up (dy<0) 1 - dy*step, down (dy>0)
+      // 1/(1 + dy*step) — x1.1 / 1/1.1 per notch, matching the zoom buttons.
+      const lines = e.deltaMode === 1 ? e.deltaY : e.deltaMode === 2 ? e.deltaY * 16 : e.deltaY / 100
+      const factor = lines < 0 ? 1 - lines * Camera.ZOOM_STEP : 1 / (1 + lines * Camera.ZOOM_STEP)
       eng.camera.zoomBy(factor, focal)
       this.markZooming()
       this.requestFrame()
@@ -706,7 +711,7 @@ export class CanvasController {
       e.preventDefault()
       return
     }
-    if (ctrl && key === 'a') {
+    if (ctrl && key === 'a' && !e.shiftKey) {
       eng.selectAll()
       e.preventDefault()
       return
@@ -716,8 +721,14 @@ export class CanvasController {
       e.preventDefault()
       return
     }
-    if (ctrl && key === 'o') {
+    if (ctrl && key === 'o' && !e.shiftKey) {
       this.store.openDocument()
+      e.preventDefault()
+      return
+    }
+    // win.toggle-overview (<Ctrl><Shift>o)
+    if (ctrl && e.shiftKey && key === 'o') {
+      window.dispatchEvent(new CustomEvent('rnote:open-popover', { detail: 'overview' }))
       e.preventDefault()
       return
     }
@@ -726,8 +737,14 @@ export class CanvasController {
       e.preventDefault()
       return
     }
-    if (ctrl && key === 'p') {
+    if (ctrl && key === 'p' && !e.shiftKey) {
       this.store.printDoc()
+      e.preventDefault()
+      return
+    }
+    // win.snap-positions (<Ctrl><Shift>p)
+    if (ctrl && e.shiftKey && key === 'p') {
+      eng.settings.snapPositions = !eng.settings.snapPositions
       e.preventDefault()
       return
     }
@@ -755,16 +772,22 @@ export class CanvasController {
       return
     }
     if (ctrl && e.shiftKey && key === 'a') {
-      eng.document.addPage()
-      eng.notify()
-      this.requestFrame()
+      // Desktop exposes add/remove page only for fixed-size layouts (infinite
+      // ignores the page count), so mirror that with a no-op here.
+      if (isFixedSize(eng.document.layout)) {
+        eng.document.addPage()
+        eng.notify()
+        this.requestFrame()
+      }
       e.preventDefault()
       return
     }
     if (ctrl && e.shiftKey && key === 'r') {
-      eng.document.removePage()
-      eng.notify()
-      this.requestFrame()
+      if (isFixedSize(eng.document.layout)) {
+        eng.document.removePage()
+        eng.notify()
+        this.requestFrame()
+      }
       e.preventDefault()
       return
     }
@@ -784,6 +807,23 @@ export class CanvasController {
     }
     if (key === 'f1') {
       this.store.openDialog('shortcuts')
+      e.preventDefault()
+      return
+    }
+    // win.open-canvasmenu (F9), win.open-appmenu (F10), win.fullscreen (F11)
+    if (key === 'f9') {
+      window.dispatchEvent(new CustomEvent('rnote:open-popover', { detail: 'canvasmenu' }))
+      e.preventDefault()
+      return
+    }
+    if (key === 'f10') {
+      window.dispatchEvent(new CustomEvent('rnote:open-popover', { detail: 'appmenu' }))
+      e.preventDefault()
+      return
+    }
+    if (key === 'f11') {
+      if (document.fullscreenElement) void document.exitFullscreen()
+      else void document.documentElement.requestFullscreen?.()
       e.preventDefault()
       return
     }
@@ -821,6 +861,18 @@ export class CanvasController {
     if (existingId !== undefined) {
       const s = eng.store.get(existingId)
       if (s instanceof TextStroke) {
+        // Adopt the edited stroke's style/width into the typewriter config so the
+        // commit (which reads the config) preserves it and Ctrl+B/I/U toggles
+        // operate on what is actually displayed.
+        cfg.family = s.textStyle.family
+        cfg.fontSize = s.textStyle.size
+        cfg.color = s.textStyle.color.clone()
+        cfg.weight = s.textStyle.weight
+        cfg.italic = s.textStyle.italic
+        cfg.underline = s.textStyle.underline
+        cfg.strike = s.textStyle.strike
+        cfg.alignment = s.textStyle.alignment
+        cfg.textWidth = s.width
         state.html = s.html
         state.width = s.width
         state.fontSize = s.textStyle.size

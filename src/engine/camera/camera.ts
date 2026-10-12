@@ -67,10 +67,12 @@ export class Camera {
   }
 
   zoomIn(focal?: Vec2) {
-    this.zoomBy(1 + Camera.ZOOM_STEP * 2, focal)
+    // Desktop zoom button/accelerator multiplier is 1 + ZOOM_SCROLL_STEP (1.1).
+    // The mouse wheel uses its own continuous factor (see onWheel), not this.
+    this.zoomBy(1 + Camera.ZOOM_STEP, focal)
   }
   zoomOut(focal?: Vec2) {
-    this.zoomBy(1 / (1 + Camera.ZOOM_STEP * 2), focal)
+    this.zoomBy(1 / (1 + Camera.ZOOM_STEP), focal)
   }
 
   // Pan by a delta expressed in surface (screen) pixels.
@@ -104,15 +106,17 @@ export class Camera {
     this.centerOn(bounds.center())
   }
 
-  fitWidth(bounds: Aabb, margin = 60) {
-    if (bounds.zero()) return
-    // Desktop uses scroller width / (format width + 2 * overshoot).
+  // Desktop "zoom fit to width": scroller width / (format width + 2*overshoot),
+  // keeping the current viewport centre so the view does not jump.
+  fitToWidth(formatWidth: number) {
+    if (!(formatWidth > 0)) return
+    const c = this.viewportCenter()
     this.zoom = clamp(
-      this.viewportSize.x / (bounds.width() + 2 * Camera.OVERSHOOT),
+      this.viewportSize.x / (formatWidth + 2 * Camera.OVERSHOOT),
       Camera.MIN_ZOOM,
       Camera.MAX_ZOOM
     )
-    this.centerOn(new Vec2(bounds.center().x, bounds.min.y + bounds.height() * 0.25))
+    this.centerOn(c)
   }
 
   // 100% zoom, keeping the current viewport center (desktop "zoom-reset").
