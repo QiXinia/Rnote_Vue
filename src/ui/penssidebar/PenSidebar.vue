@@ -727,7 +727,7 @@ const CompactWidth = defineComponent({
 .adw-list {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--card-bg, var(--popover-bg));
 }
 .adw-row {
@@ -735,16 +735,21 @@ const CompactWidth = defineComponent({
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  min-height: 50px;
+  padding: 9px 12px;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--card-shade);
   background: transparent;
   color: var(--fg);
   text-align: left;
+  transition: background-color 0.18s ease;
 }
 .adw-row:last-child { border-bottom: 0; }
-.adw-row:hover { background: var(--accent-bg); }
-.adw-row.active { background: var(--accent-bg); color: var(--accent); }
+.adw-row:hover { background: color-mix(in srgb, currentColor 3%, transparent); }
+.adw-row:active { background: color-mix(in srgb, currentColor 8%, transparent); }
+.adw-row.active { background: var(--list-selected); }
+.adw-row.active:hover { background: var(--list-selected-hover); }
+.adw-row.active:active { background: var(--list-selected-active); }
 .row-icon { width: 28px; height: 28px; flex: 0 0 28px; }
 .row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .row-text small { color: var(--fg-muted); font-size: 11.5px; line-height: 1.25; }

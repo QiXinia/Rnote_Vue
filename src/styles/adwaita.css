@@ -34,6 +34,12 @@
   --fg-faint: #9a9996;
   --border: #d1d1d1;
   --border-strong: #b0b0b0;
+  /* Port of libadwaita boxed-list row separator (@card_shade_color, 7%) and
+     selected row backgrounds ($view_selected_color = accent-bg 25%). */
+  --card-shade: rgba(0, 0, 6, 0.07);
+  --list-selected: color-mix(in srgb, var(--accent) 25%, transparent);
+  --list-selected-hover: color-mix(in srgb, var(--accent) 32%, transparent);
+  --list-selected-active: color-mix(in srgb, var(--accent) 39%, transparent);
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   --shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.16);
   --selection: #1c71d8;
@@ -62,6 +68,10 @@
   --fg-faint: #888783;
   --border: #3a3842;
   --border-strong: #504e58;
+  --card-shade: rgba(0, 0, 6, 0.36);
+  --list-selected: color-mix(in srgb, var(--accent) 30%, transparent);
+  --list-selected-hover: color-mix(in srgb, var(--accent) 38%, transparent);
+  --list-selected-active: color-mix(in srgb, var(--accent) 46%, transparent);
   --input-bg: #1c1b22;
   --shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   --shadow-pop: 0 6px 22px rgba(0, 0, 0, 0.6);

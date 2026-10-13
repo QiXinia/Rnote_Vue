@@ -1223,3 +1223,21 @@ export const NATIVE_ICONS: Record<string, string> = {
 `,
   "zoom-real-width": `<defs /><path style="fill:currentColor;stroke-width:3;stroke-dasharray:3, 3" d="M 4 0 C 1.784 -8.8817842e-16 0 1.784 0 4 L 0 12 C 0 14.216 1.784 16 4 16 L 12 16 C 14.216 16 16 14.216 16 12 L 16 4 C 16 1.784 14.216 0 12 0 L 4 0 z M 8.1269531 3 L 10 3 L 10 13 L 8.0136719 13 L 8.0136719 4.8984375 L 8 4.8984375 L 5.6503906 6.3886719 L 5.6503906 4.578125 L 8.1269531 3 z " />`,
 }
+
+// Per-icon viewBox of the source symbolic SVGs. Most Rnote icons are drawn on a
+// 16x16 grid; a handful of custom ones use smaller/larger grids. RnoteIcon must
+// use the matching viewBox, otherwise the artwork sits in the top-left corner
+// and renders far too small (e.g. stylus buttons on a 4.23 grid).
+export const NATIVE_VIEWBOX: Record<string, string> = {
+  'stylus-button-eraser': '0 0 4.2333333 4.2333333',
+  'stylus-button-primary': '0 0 4.2333333 4.2333333',
+  'stylus-button-secondary': '0 0 4.2333333 4.2333333',
+  'mouse-button-primary': '0 0 8.4666666 8.4666666',
+  'mouse-button-secondary': '0 0 8.4666666 8.4666666',
+  'drawing-pad-button-1': '0 0 32 32',
+  'drawing-pad-button-2': '0 0 32 32',
+  'drawing-pad-button-3': '0 0 32 32',
+  'drawing-pad-button-4': '0 0 32 32',
+}
+
+export const NATIVE_DEFAULT_VIEWBOX = '0 0 16 16'

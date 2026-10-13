@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import RnoteIcon from '../icons/RnoteIcon.vue'
+import { useAppStore } from '../../stores/app'
+
+// The engine is markRaw (never made reactive), so changes to its nested
+// config do not propagate through bindings. The app forces a refresh via
+// store.uiTick. A Popover renders its default slot in its OWN render effect,
+// which would not depend on uiTick — making the slot children stale. Subscribing
+// the popover's render to uiTick keeps every in-popover control in sync.
+const store = useAppStore()
 
 const props = withDefaults(
   defineProps<{
@@ -96,7 +104,7 @@ defineExpose({ close: closePopover })
 </script>
 
 <template>
-  <button ref="triggerEl" class="btn" :class="[buttonClass, { toggled: open }]" @click.stop="toggle">
+  <button ref="triggerEl" class="btn" :class="[buttonClass, { toggled: open }]" :data-tick="store.uiTick" @click.stop="toggle">
       <RnoteIcon v-if="icon" :name="open && image ? image : icon" />
       <span v-if="label" class="label">{{ label }}</span>
       <span v-if="$slots.trigger"><slot name="trigger" :open="open" /></span>

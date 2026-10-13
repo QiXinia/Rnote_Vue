@@ -2,7 +2,7 @@
 // Inline symbolic icon set (24x24, stroke-based, GNOME/adwaita style).
 // Names mirror rnote's icon names where possible.
 import { computed } from 'vue'
-import { NATIVE_ICONS } from './nativeIcons'
+import { NATIVE_ICONS, NATIVE_VIEWBOX, NATIVE_DEFAULT_VIEWBOX } from './nativeIcons'
 
 const props = withDefaults(defineProps<{ name: string; filled?: boolean }>(), { filled: false })
 
@@ -238,13 +238,18 @@ const ALIASES: Record<string, string> = {
 const resolvedName = computed(() => ALIASES[props.name] ?? props.name)
 const isNative = computed(() => Boolean(NATIVE_ICONS[resolvedName.value]))
 const inner = computed(() => NATIVE_ICONS[resolvedName.value] ?? ICONS[props.name] ?? ICONS['question'])
+const viewBox = computed(() =>
+  isNative.value
+    ? (NATIVE_VIEWBOX[resolvedName.value] ?? NATIVE_DEFAULT_VIEWBOX)
+    : '0 0 24 24',
+)
 const cls = computed(() => ['icon-svg', props.filled ? 'fill' : ''])
 </script>
 
 <template>
   <span class="icon" :class="{ sm: $attrs.size === 'sm' }">
-    <svg viewBox="0 0 24 24" :class="cls">
-      <g :class="{ native: isNative }" :transform="isNative ? 'scale(1.5)' : undefined" v-html="inner" />
+    <svg :viewBox="viewBox" :class="cls" preserveAspectRatio="xMidYMid meet">
+      <g :class="{ native: isNative }" v-html="inner" />
     </svg>
   </span>
 </template>

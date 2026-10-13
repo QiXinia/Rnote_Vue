@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Custom drop-down, porting libadwaita's AdwComboRow: a trigger showing the
 // current value and a popover list of options. Replaces native <select>.
-import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import RnoteIcon from '../icons/RnoteIcon.vue'
 
 export interface RnSelectOption {
@@ -35,6 +35,8 @@ function syncSelected() {
   selected.value = props.options.find((o) => o.value === props.modelValue)
 }
 syncSelected()
+watch(() => props.modelValue, syncSelected)
+watch(() => props.options, syncSelected, { deep: false })
 
 const CloseName = 'rnote:close-popovers'
 function closeFromEvent(e: Event) {

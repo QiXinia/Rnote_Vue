@@ -1,66 +1,77 @@
 // Selector pen (rnote pens/selector): rectangle / polygon-lasso / single /
-// intersecting-path selection, plus move, rotate and 8-handle resize.
+// intersecting-path selection, plus move, rotate and 4-corner resize.
+//
+// Geometry mirrors rnote-engine/src/pens/selector/{mod,penevents}.rs:
+//   - selection bounds get a 5% light-grey fill and a 94% grey solid outline
+//   - four 18px resize squares sit OUTSIDE the corners (at corner +/- 9px)
+//   - one 18px rotate circle sits OUTSIDE the right-edge midpoint
+//   - Ctrl (or the lock toggle) locks aspect ratio; Shift adds to the selection
 
 import { Vec2, Aabb, Transform } from '../../compose/geometry'
 import { PenStyle, SelectorStyle } from './pensconfig'
 import type { Pen, PenContext, PointerInfo } from './pen'
 import { hydrateStroke, TextStroke, type Stroke } from '../strokes/index'
 
-type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate' | null
+type HandleId = 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null
 type Gesture =
   | { kind: 'none' }
   | { kind: 'marquee'; start: Vec2; current: Vec2 }
   | { kind: 'lasso'; points: Vec2[]; current: Vec2 }
   | { kind: 'path'; points: Vec2[] }
   | { kind: 'translate'; downStart: Vec2; start: Vec2; original: Map<number, any> }
-  | { kind: 'rotate'; center: Vec2; startAngle: number; accumulated: number; original: Map<number, any> }
-  | { kind: 'scale'; handle: Exclude<HandleId, 'rotate' | null>; original: Map<number, any>; b0: Aabb; aspect: number }
+  | { kind: 'rotate'; center: Vec2; startAngle: number; original: Map<number, any> }
+  | { kind: 'scale'; corner: Exclude<HandleId, 'rotate' | null>; startPos: Vec2; startBounds: Aabb; original: Map<number, any> }
 
-const HANDLE_PX = 8
-const ROTATE_OFFSET_PX = 36
+// Surface-space node metrics (rnote selector/mod.rs).
+const NODE_SIZE_PX = 18
+const NODE_HALF_PX = NODE_SIZE_PX * 0.5
+const OUTLINE_WIDTH_PX = 2
+const SINGLE_CIRCLE_RADIUS_PX = 4
+const DASH_PATTERN: [number, number] = [12, 6]
+const MIN_EXTENT_PX = 2
+
+// Selection chrome colors (GNOME_BRIGHTS + GNOME_BLUES).
+const SEL_FILL = 'rgba(222,221,218,0.051)' // GNOME_BRIGHTS[2], a8 13
+const SEL_OUTLINE = 'rgba(154,153,150,0.941)' // GNOME_BRIGHTS[4], a8 240
+const NODE_OUTLINE = '#1a5fb4' // GNOME_BLUES[4]
+const NODE_FILL_PROXIMITY = 'rgba(153,193,241,0.302)' // GNOME_BLUES[0], a8 77
+const NODE_FILL_DOWN = 'rgba(53,132,228,0.502)' // GNOME_BLUES[2], a8 128
+const NODE_BG = '#ffffff'
 
 export class SelectorPen implements Pen {
   name = PenStyle.Selector
   private gesture: Gesture = { kind: 'none' }
   private hoverHandle: HandleId = null
   private pointer: Vec2 | null = null
+  private downHandle: HandleId = null
   private downHitSelected = false
 
   // Tolerance for the free-path (lasso/path) selection, mirroring the desktop
-  // SELECTING_SINGLE_CIRCLE_RADIUS (4.0 px). Single-click picking uses no extra
-  // radius (the stroke's own half-width only) to match desktop hitboxes.
+  // SELECTING_SINGLE_CIRCLE_RADIUS (4.0 px).
   private tolerance(ctx: PenContext): number {
-    return 4 / ctx.engine.camera.zoom
+    return SINGLE_CIRCLE_RADIUS_PX / ctx.engine.camera.zoom
   }
 
-  private handleLayout(ctx: PenContext): { rect: Aabb; handles: Map<Exclude<HandleId, null>, Vec2>; rotate: Vec2 } | null {
+  private handleLayout(ctx: PenContext): { rect: Aabb; corners: Map<Exclude<HandleId, 'rotate' | null>, Vec2>; rotate: Vec2 } | null {
     const b = ctx.engine.store.boundsSelected()
     if (!b || b.zero()) return null
-    const handles = new Map<Exclude<HandleId, null>, Vec2>()
-    const tl = b.min
-    const br = b.max
-    const tr = new Vec2(br.x, tl.y)
-    const bl = new Vec2(tl.x, br.y)
-    const c = b.center()
-    handles.set('nw', tl)
-    handles.set('n', new Vec2(c.x, tl.y))
-    handles.set('ne', tr)
-    handles.set('e', new Vec2(br.x, c.y))
-    handles.set('se', br)
-    handles.set('s', new Vec2(c.x, br.y))
-    handles.set('sw', bl)
-    handles.set('w', new Vec2(tl.x, c.y))
-    const rotate = new Vec2(c.x, tl.y - ROTATE_OFFSET_PX / ctx.engine.camera.zoom)
-    return { rect: b, handles, rotate }
+    const off = NODE_HALF_PX / ctx.engine.camera.zoom
+    const corners = new Map<Exclude<HandleId, 'rotate' | null>, Vec2>()
+    corners.set('tl', new Vec2(b.min.x - off, b.min.y - off))
+    corners.set('tr', new Vec2(b.max.x + off, b.min.y - off))
+    corners.set('bl', new Vec2(b.min.x - off, b.max.y + off))
+    corners.set('br', new Vec2(b.max.x + off, b.max.y + off))
+    const rotate = new Vec2(b.max.x + off, b.center().y)
+    return { rect: b, corners, rotate }
   }
 
   private hitHandle(ctx: PenContext, p: Vec2): HandleId {
     const layout = this.handleLayout(ctx)
     if (!layout) return null
-    const tol = HANDLE_PX * 1.6 / ctx.engine.camera.zoom
-    if (p.distance(layout.rotate) <= tol + 6 / ctx.engine.camera.zoom) return 'rotate'
-    for (const [id, pos] of layout.handles) {
-      if (p.distance(pos) <= tol) return id as HandleId
+    const r = (NODE_HALF_PX + 3) / ctx.engine.camera.zoom
+    if (p.distance(layout.rotate) <= r) return 'rotate'
+    for (const [id, pos] of layout.corners) {
+      if (p.distance(pos) <= r) return id as HandleId
     }
     return null
   }
@@ -73,29 +84,22 @@ export class SelectorPen implements Pen {
     // 1) handles take priority
     const handle = this.hitHandle(ctx, p.docPos)
     if (handle && engine.store.selected.size) {
+      this.downHandle = handle
       if (handle === 'rotate') {
         const b = engine.store.boundsSelected()!
-        const center = b.center()
         this.gesture = {
           kind: 'rotate',
-          center,
-          startAngle: Math.atan2(p.docPos.y - center.y, p.docPos.x - center.x),
-          accumulated: 0,
+          center: b.center(),
+          startAngle: Math.atan2(p.docPos.y - b.center().y, p.docPos.x - b.center().x),
           original: this.snapshotSelected(ctx)
         }
       } else {
-        const b0 = engine.store.boundsSelected()!
-        const original = new Map<number, any>()
-        for (const id of engine.store.selected) {
-          const s = engine.store.get(id)
-          if (s) original.set(id, s.toJSON())
-        }
         this.gesture = {
           kind: 'scale',
-          handle,
-          original,
-          b0,
-          aspect: b0.width() / Math.max(b0.height(), 1e-6)
+          corner: handle,
+          startPos: p.docPos.clone(),
+          startBounds: engine.store.boundsSelected()!,
+          original: this.snapshotSelected(ctx)
         }
       }
       ctx.beginTransformSel()
@@ -127,13 +131,12 @@ export class SelectorPen implements Pen {
     }
 
     // 3) empty space: begin a selection gesture or clear
+    if (!p.shift) engine.store.deselectAll()
     if (cfg.style === SelectorStyle.Single) {
-      if (!p.shift) engine.store.deselectAll()
       this.gesture = { kind: 'none' }
       ctx.render()
       return
     }
-    if (!p.shift) engine.store.deselectAll()
     if (cfg.style === SelectorStyle.Rectangle) {
       this.gesture = { kind: 'marquee', start: p.docPos.clone(), current: p.docPos.clone() }
     } else if (cfg.style === SelectorStyle.Polygon) {
@@ -152,7 +155,6 @@ export class SelectorPen implements Pen {
     switch (g.kind) {
       case 'marquee':
         g.current = p.docPos.clone()
-        this.previewMarquee(ctx, Aabb.new(g.start, g.current), false)
         break
       case 'lasso':
         g.current = p.docPos.clone()
@@ -169,25 +171,22 @@ export class SelectorPen implements Pen {
         break
       }
       case 'rotate': {
-        const angleNow = Math.atan2(p.docPos.y - g.center.y, p.docPos.x - g.center.x)
-        let total = angleNow - g.startAngle
-        // normalise around the accumulated angle to avoid wrapping
-        while (total - g.accumulated > Math.PI) total -= Math.PI * 2
-        while (total - g.accumulated < -Math.PI) total += Math.PI * 2
-        if (p.shift) {
-          const step = Math.PI / 12
-          total = Math.round(total / step) * step
-        }
+        // Desktop applies incremental angle deltas above a 0.2 deg threshold;
+        // there is no modifier snapping. Recompute from the original snapshot.
+        const angle = Math.atan2(p.docPos.y - g.center.y, p.docPos.x - g.center.x)
+        let total = angle - g.startAngle
+        while (total > Math.PI) total -= Math.PI * 2
+        while (total < -Math.PI) total += Math.PI * 2
         this.restoreAndTransform(ctx, g.original, Transform.rotation(total, g.center))
-        g.accumulated = total
         break
       }
       case 'scale':
-        this.doScale(ctx, p.docPos, p.shift || engine.pensConfig.selector.resizeLockAspectRatio, g)
+        this.doScale(ctx, p, g)
         break
     }
-    if (g.kind !== 'none') ctx.render()
-    else {
+    if (g.kind !== 'none') {
+      ctx.render()
+    } else {
       const h = this.hitHandle(ctx, p.docPos)
       if (h !== this.hoverHandle) {
         this.hoverHandle = h
@@ -216,44 +215,47 @@ export class SelectorPen implements Pen {
     ctx.engine.store.bump()
   }
 
-  private doScale(ctx: PenContext, pos: Vec2, lockAspect: boolean, g: Extract<Gesture, { kind: 'scale' }>) {
-    const b0 = g.b0
-    const c0 = b0.center()
-    let x0 = b0.min.x
-    let y0 = b0.min.y
-    let x1 = b0.max.x
-    let y1 = b0.max.y
-    const H = g.handle
-    if (H.includes('w')) x0 = pos.x
-    if (H.includes('e')) x1 = pos.x
-    if (H.startsWith('n') || H === 'nw' || H === 'sw') y0 = pos.y
-    if (H === 's' || H === 'se' || H === 'sw') y1 = pos.y
-    if (x1 <= x0) x1 = x0 + 1
-    if (y1 <= y0) y1 = y0 + 1
-    let w = x1 - x0
-    let h = y1 - y0
-    if (lockAspect) {
-      const target = Math.max(w, h)
-      w = target
-      h = target / g.aspect
-      // keep the anchored corner fixed
-      if (H.includes('w')) x0 = x1 - w
-      if (H.includes('e')) x1 = x0 + w
-      if (H.startsWith('n') || H === 'nw' || H === 'sw') y0 = y1 - h
-      if (H === 's' || H === 'se' || H === 'sw') y1 = y0 + h
+  // 1:1 port of penevents.rs Resize handling.
+  private doScale(ctx: PenContext, p: PointerInfo, g: Extract<Gesture, { kind: 'scale' }>) {
+    const zoom = ctx.engine.camera.zoom
+    const lock = p.ctrl || ctx.engine.pensConfig.selector.resizeLockAspectRatio
+
+    // Pointer displacement from the press point, then sign-flip per corner so a
+    // drag outward always grows the bounds.
+    const raw = p.docPos.sub(g.startPos)
+    const flipX = g.corner === 'tl' || g.corner === 'bl' ? -1 : 1
+    const flipY = g.corner === 'tl' || g.corner === 'tr' ? -1 : 1
+    let adj = new Vec2(raw.x * flipX, raw.y * flipY)
+
+    const ext0 = new Vec2(g.startBounds.width(), g.startBounds.height())
+    if (lock) {
+      const startMean = (ext0.x + ext0.y) * 0.5
+      const adjMean = (adj.x + adj.y) * 0.5
+      const k = adjMean / startMean
+      adj = new Vec2(ext0.x * k, ext0.y * k)
     }
-    const sx = w / b0.width()
-    const sy = h / b0.height()
-    const c1 = new Aabb(new Vec2(x0, y0), new Vec2(x1, y1)).center()
-    const t = Transform.translationVec(c1.sub(c0)).append(Transform.scale(sx, sy, c0))
-    this.restoreAndTransform(ctx, g.original, t)
+
+    const minExt = MIN_EXTENT_PX / zoom
+    const newExt = new Vec2(Math.max(ext0.x + adj.x, minExt), Math.max(ext0.y + adj.y, minExt))
+    const scale = new Vec2(newExt.x / ext0.x, newExt.y / ext0.y)
+
+    // Pivot is the opposite (anchored) corner.
+    let pivot: Vec2
+    if (g.corner === 'tl') pivot = g.startBounds.max
+    else if (g.corner === 'tr') pivot = new Vec2(g.startBounds.min.x, g.startBounds.max.y)
+    else if (g.corner === 'bl') pivot = new Vec2(g.startBounds.max.x, g.startBounds.min.y)
+    else pivot = g.startBounds.min
+
+    this.restoreAndTransform(ctx, g.original, Transform.scale(scale.x, scale.y, pivot))
   }
 
   onUp(ctx: PenContext, p: PointerInfo) {
     const engine = ctx.engine
     const g = this.gesture
     if (g.kind === 'marquee') {
-      this.previewMarquee(ctx, Aabb.new(g.start, g.current), true)
+      // Desktop commits the selection only on release.
+      const ids = engine.store.hitTestAabb(Aabb.new(g.start, g.current))
+      engine.store.setSelection(ids)
       ctx.endSelect()
     } else if (g.kind === 'lasso') {
       if (g.points.length >= 3) {
@@ -288,6 +290,7 @@ export class SelectorPen implements Pen {
       ctx.endSelect()
     }
     this.gesture = { kind: 'none' }
+    this.downHandle = null
     ctx.render()
   }
 
@@ -347,87 +350,126 @@ export class SelectorPen implements Pen {
     }
   }
 
-  private previewMarquee(ctx: PenContext, box: Aabb, commit: boolean) {
-    const ids = ctx.engine.store.hitTestAabb(box)
-    ctx.engine.store.setSelection(ids)
-  }
-
   drawOverlay(docCtx: CanvasRenderingContext2D, ctx: PenContext) {
     const zoom = ctx.engine.camera.zoom
-    // in-progress selection regions
+    const cfg = ctx.engine.pensConfig.selector
     const g = this.gesture
     docCtx.save()
+
+    // in-progress selection regions (dashed, grey)
     if (g.kind === 'marquee') {
-      const b = Aabb.new(g.start, g.current)
-      docCtx.fillStyle = 'rgba(28,113,216,0.12)'
-      docCtx.fillRect(b.min.x, b.min.y, b.width(), b.height())
-      docCtx.strokeStyle = '#1c71d8'
-      docCtx.lineWidth = 1 / zoom
-      docCtx.setLineDash([6 / zoom, 4 / zoom])
-      docCtx.strokeRect(b.min.x, b.min.y, b.width(), b.height())
-      docCtx.setLineDash([])
+      this.drawSelectBox(docCtx, Aabb.new(g.start, g.current), false, zoom)
     } else if (g.kind === 'lasso' || g.kind === 'path') {
       const pts = g.kind === 'lasso' ? [...g.points, g.current] : g.points
       if (pts.length > 1) {
-        docCtx.strokeStyle = '#1c71d8'
-        docCtx.lineWidth = 1 / zoom
-        docCtx.setLineDash([6 / zoom, 4 / zoom])
+        docCtx.fillStyle = SEL_FILL
+        docCtx.strokeStyle = SEL_OUTLINE
+        docCtx.lineWidth = OUTLINE_WIDTH_PX / zoom
+        docCtx.setLineDash(DASH_PATTERN.map((x) => x / zoom) as [number, number])
         docCtx.beginPath()
         pts.forEach((p, i) => (i === 0 ? docCtx.moveTo(p.x, p.y) : docCtx.lineTo(p.x, p.y)))
         if (g.kind === 'lasso') docCtx.closePath()
+        if (g.kind === 'lasso') docCtx.fill()
         docCtx.stroke()
         docCtx.setLineDash([])
       }
+    } else if (g.kind === 'none' && cfg.style === SelectorStyle.Single && this.pointer) {
+      // picking indicator ring in single mode
+      docCtx.strokeStyle = SEL_OUTLINE
+      docCtx.lineWidth = OUTLINE_WIDTH_PX / zoom
+      docCtx.beginPath()
+      docCtx.arc(this.pointer.x, this.pointer.y, SINGLE_CIRCLE_RADIUS_PX / zoom, 0, Math.PI * 2)
+      docCtx.stroke()
     }
     docCtx.restore()
 
-    // selection chrome (hidden while a marquee/translate gesture is in flight)
-    const showChrome = g.kind === 'none' || g.kind === 'rotate' || g.kind === 'scale'
+    // selection chrome: hidden while marquee/lasso/path are in flight
+    const showChrome = g.kind === 'none' || g.kind === 'rotate' || g.kind === 'scale' || g.kind === 'translate'
     if (showChrome && ctx.engine.store.selected.size) {
       const layout = this.handleLayout(ctx)
       if (!layout) return
       const b = layout.rect
       docCtx.save()
-      docCtx.strokeStyle = '#1c71d8'
-      docCtx.lineWidth = 1 / zoom
-      docCtx.setLineDash([6 / zoom, 4 / zoom])
-      docCtx.strokeRect(b.min.x, b.min.y, b.width(), b.height())
-      docCtx.setLineDash([])
+      this.drawSelectBox(docCtx, b, true, zoom)
 
-      // rotation handle + connector
-      docCtx.strokeStyle = '#1c71d8'
-      docCtx.beginPath()
-      docCtx.moveTo(b.center().x, b.min.y)
-      docCtx.lineTo(layout.rotate.x, layout.rotate.y)
-      docCtx.stroke()
-      this.drawHandle(docCtx, layout.rotate, zoom, true)
-      for (const [, pos] of layout.handles) this.drawHandle(docCtx, pos, zoom, false)
+      // rotate (circle) node
+      const rotState = g.kind === 'rotate' ? 'down' : this.hoverHandle === 'rotate' ? 'prox' : 'up'
+      this.drawCircleNode(docCtx, layout.rotate, zoom, rotState)
+
+      // resize (square) nodes
+      for (const [id, pos] of layout.corners) {
+        const st = g.kind === 'scale' && this.downHandle === id ? 'down' : this.hoverHandle === id ? 'prox' : 'up'
+        this.drawSquareNode(docCtx, pos, zoom, st)
+      }
       docCtx.restore()
     }
   }
 
-  private drawHandle(docCtx: CanvasRenderingContext2D, pos: Vec2, zoom: number, rotate: boolean) {
-    const size = HANDLE_PX / zoom
-    docCtx.save()
-    docCtx.fillStyle = rotate ? '#1c71d8' : '#ffffff'
-    docCtx.strokeStyle = '#1c71d8'
-    docCtx.lineWidth = 1.5 / zoom
-    if (rotate) {
-      docCtx.beginPath()
-      docCtx.arc(pos.x, pos.y, size * 0.9, 0, Math.PI * 2)
-      docCtx.fill()
+  private drawSelectBox(docCtx: CanvasRenderingContext2D, b: Aabb, solid: boolean, zoom: number) {
+    docCtx.fillStyle = SEL_FILL
+    docCtx.fillRect(b.min.x, b.min.y, b.width(), b.height())
+    docCtx.strokeStyle = SEL_OUTLINE
+    docCtx.lineWidth = OUTLINE_WIDTH_PX / zoom
+    if (solid) {
+      docCtx.setLineDash([])
     } else {
-      docCtx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size)
-      docCtx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size)
+      docCtx.setLineDash(DASH_PATTERN.map((x) => x / zoom) as [number, number])
     }
+    docCtx.strokeRect(b.min.x, b.min.y, b.width(), b.height())
+    docCtx.setLineDash([])
+  }
+
+  private drawSquareNode(docCtx: CanvasRenderingContext2D, pos: Vec2, zoom: number, state: 'up' | 'prox' | 'down') {
+    const half = NODE_HALF_PX / zoom
+    const r = 1 / zoom
+    const x = pos.x - half
+    const y = pos.y - half
+    const s = half * 2
+    docCtx.save()
+    docCtx.beginPath()
+    if (typeof docCtx.roundRect === 'function') docCtx.roundRect(x, y, s, s, r)
+    else docCtx.rect(x, y, s, s)
+    docCtx.fillStyle = NODE_BG
+    docCtx.fill()
+    if (state === 'prox') {
+      docCtx.fillStyle = NODE_FILL_PROXIMITY
+      docCtx.fill()
+    } else if (state === 'down') {
+      docCtx.fillStyle = NODE_FILL_DOWN
+      docCtx.fill()
+    }
+    docCtx.lineWidth = 1.5 / zoom
+    docCtx.strokeStyle = NODE_OUTLINE
+    docCtx.stroke()
+    docCtx.restore()
+  }
+
+  private drawCircleNode(docCtx: CanvasRenderingContext2D, pos: Vec2, zoom: number, state: 'up' | 'prox' | 'down') {
+    const radius = NODE_HALF_PX / zoom
+    docCtx.save()
+    docCtx.beginPath()
+    docCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2)
+    docCtx.fillStyle = NODE_BG
+    docCtx.fill()
+    if (state === 'prox') {
+      docCtx.fillStyle = NODE_FILL_PROXIMITY
+      docCtx.fill()
+    } else if (state === 'down') {
+      docCtx.fillStyle = NODE_FILL_DOWN
+      docCtx.fill()
+    }
+    docCtx.lineWidth = 1.5 / zoom
+    docCtx.strokeStyle = NODE_OUTLINE
+    docCtx.stroke()
     docCtx.restore()
   }
 
   cursor(ctx: PenContext, p: PointerInfo): string {
     if (this.gesture.kind !== 'none') return 'grabbing'
-    const h = this.hitHandle(ctx, p.docPos) as string | null
+    const h = this.hitHandle(ctx, p.docPos)
     if (h === 'rotate') return 'crosshair'
-    if (h && h !== 'rotate') return handleCursor(h)
+    if (h === 'tl' || h === 'br') return 'nwse-resize'
+    if (h === 'tr' || h === 'bl') return 'nesw-resize'
     const hits = ctx.engine.store.hitTestPoint(p.docPos, 0, ctx.engine.camera.zoom, true)
     if (hits.length && ctx.engine.store.isSelected(hits[0])) return 'move'
     return 'default'
@@ -435,20 +477,7 @@ export class SelectorPen implements Pen {
 
   cancel(ctx: PenContext) {
     this.gesture = { kind: 'none' }
+    this.downHandle = null
     ctx.render()
   }
-}
-
-function handleCursor(h: string): string {
-  const map: Record<string, string> = {
-    nw: 'nwse-resize',
-    se: 'nwse-resize',
-    ne: 'nesw-resize',
-    sw: 'nesw-resize',
-    n: 'ns-resize',
-    s: 'ns-resize',
-    e: 'ew-resize',
-    w: 'ew-resize'
-  }
-  return map[h] ?? 'pointer'
 }
