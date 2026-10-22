@@ -8,6 +8,7 @@ import {
   Shape,
   LineShape,
   ArrowShape,
+  ArrowHeadStyle,
   RectangleShape,
   EllipseShape,
   PolygonShape,
@@ -189,23 +190,33 @@ function drawSolidFill(ctx: CanvasRenderingContext2D, shape: Shape, o: RoughOpti
   ctx.fill()
 }
 
-function drawArrowHead(ctx: CanvasRenderingContext2D, shape: ArrowShape, o: RoughOptions) {
-  const color = o.stroke_color
-  if (!color) return
-  const size = Math.max(16, o.stroke_width * 4)
-  const dir = shape.end.sub(shape.start).normalize()
-  const head = (at: Vec2, d: Vec2) => {
+function drawArrowHead(
+  ctx: CanvasRenderingContext2D,
+  shape: ArrowShape,
+  o: RoughOptions,
+  rng: () => number,
+  roughness: number,
+  passes: number
+) {
+  if (!o.stroke_color) return
+  // rnote-compose Arrow uses the same open 13π/16 chevron for rough and
+  // smooth styles and scales its 10-unit wings with the stroke width.
+  const size = 10 * (1 + 0.18 * o.stroke_width)
+  const wingAngle = (13 * Math.PI) / 16
+  const stem = shape.end.sub(shape.start)
+  const dir = stem.length() === 0 ? new Vec2(1, 0) : stem.normalize()
+  const head = (at: Vec2, d: Vec2, kind: ArrowHeadStyle) => {
+    if (kind === ArrowHeadStyle.None) return
     const angle = Math.atan2(d.y, d.x)
-    const base = at.sub(d.mul(size))
-    ctx.fillStyle = color.toCss()
-    ctx.beginPath()
-    ctx.moveTo(at.x, at.y)
-    ctx.lineTo(base.x + Math.cos(angle - Math.PI / 7) * size, base.y + Math.sin(angle - Math.PI / 7) * size)
-    ctx.lineTo(base.x + Math.cos(angle + Math.PI / 7) * size, base.y + Math.sin(angle + Math.PI / 7) * size)
-    ctx.closePath()
-    ctx.fill()
+    const p1 = new Vec2(at.x + Math.cos(angle - wingAngle) * size, at.y + Math.sin(angle - wingAngle) * size)
+    const p2 = new Vec2(at.x + Math.cos(angle + wingAngle) * size, at.y + Math.sin(angle + wingAngle) * size)
+    for (let pass = 0; pass < passes; pass++) {
+      tracePolyline(ctx, roughLinePoints(p1, at, rng, roughness, o.bowing))
+      tracePolyline(ctx, roughLinePoints(at, p2, rng, roughness, o.bowing))
+    }
   }
-  head(shape.end, dir)
+  head(shape.end, dir, shape.head)
+  head(shape.start, dir.neg(), shape.tail)
 }
 
 export function applyRoughShape(ctx: CanvasRenderingContext2D, shape: Shape, o: RoughOptions) {
@@ -231,7 +242,7 @@ export function applyRoughShape(ctx: CanvasRenderingContext2D, shape: Shape, o: 
     for (let pass = 0; pass < passes; pass++) tracePolyline(ctx, roughLinePoints(shape.start, shape.end, rng, roughness, o.bowing))
   } else if (shape instanceof ArrowShape) {
     for (let pass = 0; pass < passes; pass++) tracePolyline(ctx, roughLinePoints(shape.start, shape.end, rng, roughness, o.bowing))
-    drawArrowHead(ctx, shape, o)
+    drawArrowHead(ctx, shape, o, rng, roughness, passes)
   } else if (shape instanceof RectangleShape) {
     const v = shape.rect.vertices()
     for (let i = 0; i < 4; i++) {
@@ -309,11 +320,20 @@ export function roughSVG(shape: Shape, o: RoughOptions): string {
     addLine(shape.start, shape.end)
   } else if (shape instanceof ArrowShape) {
     addLine(shape.start, shape.end)
-    const size = Math.max(16, o.stroke_width * 4)
-    const dir = shape.end.sub(shape.start).normalize()
-    const base = shape.end.sub(dir.mul(size))
-    const ang = Math.atan2(dir.y, dir.x)
-    paths += `<polygon points="${r(shape.end.x)},${r(shape.end.y)} ${r(base.x + Math.cos(ang - Math.PI / 7) * size)},${r(base.y + Math.sin(ang - Math.PI / 7) * size)} ${r(base.x + Math.cos(ang + Math.PI / 7) * size)},${r(base.y + Math.sin(ang + Math.PI / 7) * size)}" fill="${color}"/>`
+    const size = 10 * (1 + 0.18 * o.stroke_width)
+    const wingAngle = (13 * Math.PI) / 16
+    const stem = shape.end.sub(shape.start)
+    const dir = stem.length() === 0 ? new Vec2(1, 0) : stem.normalize()
+    const addHead = (at: Vec2, d: Vec2, kind: ArrowHeadStyle) => {
+      if (kind === ArrowHeadStyle.None) return
+      const angle = Math.atan2(d.y, d.x)
+      const p1 = new Vec2(at.x + Math.cos(angle - wingAngle) * size, at.y + Math.sin(angle - wingAngle) * size)
+      const p2 = new Vec2(at.x + Math.cos(angle + wingAngle) * size, at.y + Math.sin(angle + wingAngle) * size)
+      addLine(p1, at)
+      addLine(at, p2)
+    }
+    addHead(shape.end, dir, shape.head)
+    addHead(shape.start, dir.neg(), shape.tail)
   } else if (shape instanceof RectangleShape) {
     const v = shape.rect.vertices()
     for (let i = 0; i < 4; i++) addLine(v[i], v[(i + 1) % 4])

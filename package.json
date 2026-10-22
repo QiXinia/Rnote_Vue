@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --noEmit",
     "verify:rnote": "esbuild scripts/verify-rnote-import.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-rnote-import.mjs && node node_modules/.tmp/verify-rnote-import.mjs ../rnote-src/misc",
     "verify:rng": "esbuild scripts/verify-rng.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-rng.mjs && node node_modules/.tmp/verify-rng.mjs",
+    "verify:rendering": "esbuild scripts/verify-rendering.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-rendering.mjs && node node_modules/.tmp/verify-rendering.mjs",
     "verify:desktop-export": "esbuild scripts/verify-desktop-export.ts --bundle --platform=node --format=esm --outfile=node_modules/.tmp/verify-desktop-export.mjs && node node_modules/.tmp/verify-desktop-export.mjs"
   },
   "dependencies": {

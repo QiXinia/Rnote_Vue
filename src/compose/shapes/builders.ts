@@ -139,7 +139,7 @@ export class ShapeBuilder {
         return [new LineShape(this.anchors[0], cur)]
       case ShapeBuilderType.Arrow: {
         const a = new ArrowShape(this.anchors[0], cur)
-        a.head = ArrowHeadStyle.Triangle
+        a.head = ArrowHeadStyle.Open
         return [a]
       }
       case ShapeBuilderType.Rectangle:
@@ -204,11 +204,11 @@ function tickSpacing(len: number): number {
 function axisWithTicks(origin: Vec2, end: Vec2, tickLen: number, bothDirections: boolean): Shape[] {
   const shapes: Shape[] = []
   const arrow = new ArrowShape(origin, end)
-  arrow.head = ArrowHeadStyle.Triangle
+  arrow.head = ArrowHeadStyle.Open
   shapes.push(arrow)
   if (bothDirections) {
     const back = new ArrowShape(origin, origin.mul(2).sub(end))
-    back.head = ArrowHeadStyle.Triangle
+    back.head = ArrowHeadStyle.Open
     shapes.push(back)
   }
   const dir = end.sub(origin)

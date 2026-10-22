@@ -141,7 +141,10 @@ export class ArrowShape extends Shape {
   kind: ShapeKind = 'arrow'
   start: Vec2
   end: Vec2
-  head: ArrowHeadStyle = ArrowHeadStyle.Triangle
+  // Native Rnote arrows are an open chevron at the tip. Triangle/tail are kept
+  // only for backwards compatibility with documents produced by older Web
+  // builds; all native builders and imports use Open/None.
+  head: ArrowHeadStyle = ArrowHeadStyle.Open
   tail: ArrowHeadStyle = ArrowHeadStyle.None
   headSize = 10
 
@@ -185,6 +188,13 @@ export class ArrowShape extends Shape {
   composedBounds(strokeWidth: number): Aabb {
     return this.internalBounds(strokeWidth).extend_by(strokeWidth)
   }
+
+  // RoughOptions::ROUGH_BOUNDS_MARGIN and Arrow's rough Composer bounds in
+  // rnote-compose. Keeping this margin is important for viewport/tile culling:
+  // the deliberately wobbly pixels extend beyond the geometric skeleton.
+  roughComposedBounds(strokeWidth: number, margin: number): Aabb {
+    return this.internalBounds(strokeWidth).extend_by(strokeWidth * 0.5 + margin)
+  }
   translate(d: Vec2) {
     this.start = this.start.add(d)
     this.end = this.end.add(d)
@@ -226,38 +236,41 @@ export class ArrowShape extends Shape {
     }
   }
   draw(ctx: CanvasRenderingContext2D, style: ShapeStyle) {
-    const s = style.stroke
-    this.applyStroke(ctx, s)
-    const color = s.stroke_color ? s.stroke_color.toCss() : 'transparent'
-    const dir = this.end.sub(this.start).normalize()
-    let lineEnd = this.end
-    let lineStart = this.start
-    ctx.beginPath()
-    ctx.moveTo(lineStart.x, lineStart.y)
-    ctx.lineTo(lineEnd.x, lineEnd.y)
-    ctx.stroke()
-    if (this.head !== ArrowHeadStyle.None) this.drawHead(ctx, this.end, dir, this.head, { width: s.stroke_width, color })
-    if (this.tail !== ArrowHeadStyle.None) this.drawHead(ctx, this.start, dir.neg(), this.tail, { width: s.stroke_width, color })
+    this.drawOrRough(ctx, style, () => {
+      const s = style.stroke
+      this.applyStroke(ctx, s)
+      if (!s.stroke_color) return
+      const color = s.stroke_color.toCss()
+      const dir = this.stemDir()
+      ctx.beginPath()
+      ctx.moveTo(this.start.x, this.start.y)
+      ctx.lineTo(this.end.x, this.end.y)
+      ctx.stroke()
+      if (this.head !== ArrowHeadStyle.None) this.drawHead(ctx, this.end, dir, this.head, { width: s.stroke_width, color })
+      if (this.tail !== ArrowHeadStyle.None) this.drawHead(ctx, this.start, dir.neg(), this.tail, { width: s.stroke_width, color })
+    })
   }
   toSVG(style: ShapeStyle): string {
+    if (style.roughEnabled) return roughSVG(this, style.rough)
     const s = style.stroke
     const color = s.stroke_color ? s.stroke_color.toHex() : 'none'
     const size = this.headSize * (1 + 0.18 * s.stroke_width)
     const wingAngle = (13 * Math.PI) / 16
-    const dir = this.end.sub(this.start).normalize()
+    const dir = this.stemDir()
     let out = `<line x1="${r(this.start.x)}" y1="${r(this.start.y)}" x2="${r(this.end.x)}" y2="${r(this.end.y)}" ${this.strokeSVGAttrs(s)}/>`
-    const head = (at: Vec2, d: Vec2) => {
+    const head = (at: Vec2, d: Vec2, kind: ArrowHeadStyle) => {
       const angle = Math.atan2(d.y, d.x)
       const p1 = `${r(at.x + Math.cos(angle - wingAngle) * size)},${r(at.y + Math.sin(angle - wingAngle) * size)}`
       const p2 = `${r(at.x + Math.cos(angle + wingAngle) * size)},${r(at.y + Math.sin(angle + wingAngle) * size)}`
       const tip = `${r(at.x)},${r(at.y)}`
-      if (style.stroke.fill_color) {
-        return `<polygon points="${tip} ${p1} ${p2}" fill="${style.stroke.fill_color.toHex()}"/>`
+      if (kind === ArrowHeadStyle.Triangle) {
+        const base = at.sub(d.mul(size))
+        return `<polygon points="${tip} ${p1} ${r(base.x)},${r(base.y)} ${p2}" fill="${color}"/>`
       }
-      return `<polyline points="${p1} ${tip} ${p2}" fill="none" stroke="${color}" stroke-width="${r(s.stroke_width)}" stroke-linecap="round" stroke-linejoin="round"/>`
+      return `<polyline points="${p1} ${tip} ${p2}" fill="none" stroke="${color}" stroke-width="${r(s.stroke_width)}" stroke-linecap="${s.line_cap === LineCap.Rounded ? 'round' : 'butt'}" stroke-linejoin="round"/>`
     }
-    if (this.head !== ArrowHeadStyle.None) out += head(this.end, dir)
-    if (this.tail !== ArrowHeadStyle.None) out += head(this.start, dir.neg())
+    if (this.head !== ArrowHeadStyle.None) out += head(this.end, dir, this.head)
+    if (this.tail !== ArrowHeadStyle.None) out += head(this.start, dir.neg(), this.tail)
     return `<g>${out}</g>`
   }
   toJSON() {
@@ -522,12 +535,15 @@ export class QuadBezShape extends Shape {
     ctx.quadraticCurveTo(this.cp.x, this.cp.y, this.end.x, this.end.y)
   }
   draw(ctx: CanvasRenderingContext2D, style: ShapeStyle) {
-    const s = style.stroke
-    this.applyStroke(ctx, s)
-    this.path(ctx)
-    ctx.stroke()
+    this.drawOrRough(ctx, style, () => {
+      const s = style.stroke
+      this.applyStroke(ctx, s)
+      this.path(ctx)
+      if (s.stroke_color) ctx.stroke()
+    })
   }
   toSVG(style: ShapeStyle): string {
+    if (style.roughEnabled) return roughSVG(this, style.rough)
     return `<path d="M ${r(this.start.x)} ${r(this.start.y)} Q ${r(this.cp.x)} ${r(this.cp.y)} ${r(this.end.x)} ${r(this.end.y)}" ${this.strokeSVGAttrs(style.stroke)}/>`
   }
   toJSON() {
@@ -591,12 +607,15 @@ export class CubBezShape extends Shape {
     ctx.bezierCurveTo(this.cp1.x, this.cp1.y, this.cp2.x, this.cp2.y, this.end.x, this.end.y)
   }
   draw(ctx: CanvasRenderingContext2D, style: ShapeStyle) {
-    const s = style.stroke
-    this.applyStroke(ctx, s)
-    this.path(ctx)
-    ctx.stroke()
+    this.drawOrRough(ctx, style, () => {
+      const s = style.stroke
+      this.applyStroke(ctx, s)
+      this.path(ctx)
+      if (s.stroke_color) ctx.stroke()
+    })
   }
   toSVG(style: ShapeStyle): string {
+    if (style.roughEnabled) return roughSVG(this, style.rough)
     return `<path d="M ${r(this.start.x)} ${r(this.start.y)} C ${r(this.cp1.x)} ${r(this.cp1.y)} ${r(this.cp2.x)} ${r(this.cp2.y)} ${r(this.end.x)} ${r(this.end.y)}" ${this.strokeSVGAttrs(style.stroke)}/>`
   }
   toJSON() {
@@ -653,7 +672,7 @@ export function shapeFromJSON(o: any): Shape | null {
       return new LineShape(vpt(o.start), vpt(o.end))
     case 'arrow': {
       const a = new ArrowShape(vpt(o.start), vpt(o.end))
-      a.head = o.head ?? ArrowHeadStyle.Triangle
+      a.head = o.head ?? ArrowHeadStyle.Open
       a.tail = o.tail ?? ArrowHeadStyle.None
       return a
     }
