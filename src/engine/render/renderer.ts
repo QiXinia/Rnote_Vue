@@ -17,6 +17,17 @@ import type { Stroke } from '../strokes/stroke'
 export const WORKSPACE_COLOR_LIGHT = '#e0e0e2'
 export const WORKSPACE_COLOR_DARK = '#35333c'
 
+/** Apply the camera's document → device-pixel transform to a canvas context. */
+export function applyDocumentTransform(
+  ctx: Pick<CanvasRenderingContext2D, 'setTransform' | 'translate' | 'scale'>,
+  camera: { offset: Vec2; zoom: number },
+  dpr: number
+) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.translate(-camera.offset.x, -camera.offset.y)
+  ctx.scale(camera.zoom, camera.zoom)
+}
+
 type SelectMode = false | 'marquee' | 'translate' | 'transform'
 
 export class Renderer {
@@ -208,10 +219,24 @@ export class Renderer {
     xc.scale(cam.zoom, cam.zoom)
     this.drawStrokes(xc, (s) => this.engine.store.isSelected(s.id))
   }
+  /**
+   * Restore the document-to-device transform after compositing a device-pixel
+   * cache. Selection overlays and live transformed strokes are expressed in
+   * document coordinates, just like the normal paintScene path.
+   */
+  private setDocumentTransform(ctx: CanvasRenderingContext2D) {
+    const cam = this.engine.camera
+    const dpr = this.canvas.width / Math.max(1, cam.viewportSize.x)
+    applyDocumentTransform(ctx, cam, dpr)
+  }
   private renderMarquee() {
     const ctx = this.ctx
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.drawImage(this.fullCache!, 0, 0)
+    // drawDocOverlay consumes document coordinates. Leaving the identity
+    // transform here displaced/scaled the marquee after every pan/zoom and on
+    // HiDPI screens.
+    this.setDocumentTransform(ctx)
     this.drawDocOverlay?.(ctx)
   }
   private renderTranslate() {
@@ -228,7 +253,10 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     ctx.drawImage(this.staticCache!, 0, 0)
-    // only the selected strokes on top (data already updated by the pen)
+    // The cache is in device pixels, but stroke geometry and selector chrome
+    // are in document space. Reapply exactly the same camera transform as the
+    // normal scene before drawing either one.
+    this.setDocumentTransform(ctx)
     this.drawStrokes(ctx, (s) => this.engine.store.isSelected(s.id))
     this.drawDocOverlay?.(ctx)
   }

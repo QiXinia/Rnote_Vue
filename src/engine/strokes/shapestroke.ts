@@ -50,15 +50,28 @@ export class ShapeStroke implements Stroke {
   }
 
   bounds(): Aabb {
-    const width = this.smooth.stroke_width
     let b: Aabb | null = null
     for (const s of this.shapes) {
-      // Arrow has a width-dependent tip length (Rust internal_compute_bounds);
-      // other shapes are loosened by the stroke width like composed_bounds.
-      const sb =
-        s.kind === 'arrow'
-          ? (s as unknown as { composedBounds(w: number): Aabb }).composedBounds(width)
-          : s.bounds().extend_by(width)
+      let sb: Aabb
+      if (this.roughEnabled) {
+        const width = this.rough.stroke_width
+        // Exact margins used by rnote-compose's rough Composer. Without the
+        // fixed rough margin, viewport and content-tile clipping can cut off
+        // the jittered outline (most visibly on arrows and Béziers).
+        sb =
+          s.kind === 'arrow'
+            ? (s as unknown as { roughComposedBounds(w: number, margin: number): Aabb })
+                .roughComposedBounds(width, RoughOptions.ROUGH_BOUNDS_MARGIN)
+            : s.bounds().extend_by(width * 0.5 + RoughOptions.ROUGH_BOUNDS_MARGIN)
+      } else {
+        const width = this.smooth.stroke_width
+        // Smooth Arrow has a width-dependent tip length; Rust loosens its
+        // bounds by the full width, while all other shapes use half-width.
+        sb =
+          s.kind === 'arrow'
+            ? (s as unknown as { composedBounds(w: number): Aabb }).composedBounds(width)
+            : s.bounds().extend_by(width * 0.5)
+      }
       b = b ? b.union(sb) : sb
     }
     return b ?? new Aabb()

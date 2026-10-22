@@ -137,6 +137,7 @@ the desktop open-chevron constants (`10*(1+0.18*width)` tip length and a
 - `npm run verify:desktop-export` — desktop schema tags and export→import round trip.
 - `npm run verify:rnote` — ten real desktop `.rnote` samples.
 - `npm run verify:rng` — Rust PCG64 / rand_distr / textured-dot reference vectors.
+- `npm run verify:rendering` — camera/DPR selection transforms, native open-arrow geometry, rough Bézier dispatch and rough-shape culling bounds.
 
 ## Desktop `.rnote` import
 
