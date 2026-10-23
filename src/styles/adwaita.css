@@ -1318,11 +1318,23 @@ canvas.draw {
   margin-left: 2px;
   border-radius: 50%;
   color: var(--fg-dim);
-  flex: none;
+  flex: 0 0 18px;
+  line-height: 0;
+}
+/* RnoteIcon has a global 20px wrapper. Constrain the wrapper as well as the
+   SVG; otherwise the oversized flex item shifts the close glyph inside an
+   18px tab button even though the SVG viewBox itself is centred. */
+.tab-close .icon {
+  width: 16px;
+  height: 16px;
+  flex-basis: 16px;
+  align-items: center;
+  justify-content: center;
 }
 .tab-close svg {
-  width: 13px;
-  height: 13px;
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 .tab-page:hover .tab-close,
 .tab-page.active .tab-close {

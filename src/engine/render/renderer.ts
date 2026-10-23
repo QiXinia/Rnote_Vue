@@ -28,6 +28,11 @@ export function applyDocumentTransform(
   ctx.scale(camera.zoom, camera.zoom)
 }
 
+/** Convert the cached selection's CSS-pixel displacement back to doc space. */
+export function selectionPreviewDocOffset(surfaceX: number, surfaceY: number, zoom: number): Vec2 {
+  return new Vec2(surfaceX / zoom, surfaceY / zoom)
+}
+
 type SelectMode = false | 'marquee' | 'translate' | 'transform'
 
 export class Renderer {
@@ -201,17 +206,12 @@ export class Renderer {
     const viewport0 = cam.visibleDocBounds()
     this.drawDocument(sc, viewport0, this.engine.contentBounds())
 
-    // Static, non-selected content comes from the pre-flattened tiles (sc is in
-    // document transform); direct-draw only inside tiles not built yet.
-    const missing = this.tiles!.blit(sc, viewport0)
-    if (missing.length) {
-      this.drawStrokes(sc, (s) => {
-        if (this.engine.store.isSelected(s.id)) return false
-        const b = s.bounds()
-        for (const t of missing) if (t.intersects(b)) return true
-        return false
-      })
-    }
+    // A flattened content tile contains every stroke and therefore cannot be
+    // filtered after the fact. Blitting it here left the selected strokes baked
+    // into the static layer while also drawing them into selectCache: dragging
+    // a multi-selection showed a ghost at the old position. Build this one-off
+    // interaction snapshot directly, partitioning every stroke exactly once.
+    this.drawStrokes(sc, (s) => !this.engine.store.isSelected(s.id))
 
     // selected layer: transparent, same camera transform, only selected strokes
     xc.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -241,12 +241,20 @@ export class Renderer {
   }
   private renderTranslate() {
     const ctx = this.ctx
-    const dpr = this.canvas.width / Math.max(1, this.engine.camera.viewportSize.x)
+    const cam = this.engine.camera
+    const dpr = this.canvas.width / Math.max(1, cam.viewportSize.x)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     ctx.drawImage(this.staticCache!, 0, 0)
     ctx.drawImage(this.selectCache!, this.selDX * dpr, this.selDY * dpr)
-    // no selection chrome while dragging; it returns on release
+
+    // Keep the selection outline and handles attached to the bitmap throughout
+    // the drag. Geometry is deliberately committed only on pointer-up, so shift
+    // the document-space overlay by the preview displacement here.
+    this.setDocumentTransform(ctx)
+    const previewOffset = selectionPreviewDocOffset(this.selDX, this.selDY, cam.zoom)
+    ctx.translate(previewOffset.x, previewOffset.y)
+    this.drawDocOverlay?.(ctx)
   }
   private renderTransformSel() {
     const ctx = this.ctx

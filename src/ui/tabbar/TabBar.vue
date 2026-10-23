@@ -96,7 +96,13 @@ function onDragEnd() {
       >
         <RnoteIcon v-if="tab.dirty" name="dot" class="tab-dot" />
         <span class="tab-title">{{ tab.name === 'New Document' ? t('New Document') : tab.name }}</span>
-        <span class="tab-close" @click.stop="store.closeTab(tab.id)">
+        <span
+          class="tab-close"
+          role="button"
+          :aria-label="t('Close')"
+          @pointerdown.stop
+          @click.stop="store.closeTab(tab.id)"
+        >
           <RnoteIcon name="window-close" />
         </span>
       </button>
