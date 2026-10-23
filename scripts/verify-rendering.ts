@@ -10,7 +10,11 @@ import {
   SmoothOptions
 } from '../src/compose/style/options'
 import { ShapeStroke } from '../src/engine/strokes/shapestroke'
-import { applyDocumentTransform } from '../src/engine/render/renderer'
+import {
+  applyDocumentTransform,
+  selectionPreviewDocOffset
+} from '../src/engine/render/renderer'
+import { COLOR_PICKER_SWATCHES } from '../src/compose/style/color'
 
 const smooth = SmoothOptions.default()
 smooth.stroke_width = 4
@@ -57,5 +61,15 @@ assert.deepEqual(calls, [
   ['translate', -37, 12],
   ['scale', 1.75, 1.75]
 ])
+
+// A drag preview is stored in surface pixels; its selection chrome must move by
+// the equivalent document displacement at every zoom level.
+assert.deepEqual(selectionPreviewDocOffset(90, -45, 1.5), new Vec2(60, -30))
+
+// Palette rows follow rnote-compose/color.rs: brights, darks, then hue groups.
+assert.equal(COLOR_PICKER_SWATCHES.length, 9)
+assert.equal(COLOR_PICKER_SWATCHES[0][0].toHex(), '#ffffff')
+assert.equal(COLOR_PICKER_SWATCHES[1][4].toHex(), '#000000')
+assert.equal(COLOR_PICKER_SWATCHES[2][0].toHex(), '#99c1f1')
 
 console.log('Rendering regression checks passed')

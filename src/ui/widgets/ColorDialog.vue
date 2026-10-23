@@ -2,8 +2,9 @@
 // Self-drawn port of GTK4's GtkColorChooserDialog -> GtkColorChooserWidget.
 //
 // Two views, exactly like the desktop widget:
-//   * palette (default): 9 rows x 5 columns GNOME default palette, a "Custom"
-//     heading, an add ("+") swatch and up to 8 recent custom swatches.
+//   * palette (default): the 9 × 5 GNOME groups from rnote-compose/color.rs,
+//     in Rust source order (brights, darks, then hue groups), followed by a
+//     "Custom" heading, add swatch and up to 8 recent custom swatches.
 //   * editor: shown after pressing "+" (or editing a custom swatch) — a large
 //     saturation/value plane, a vertical hue bar on its left, a horizontal
 //     alpha bar underneath, a big colour sample and a #RRGGBB hex entry.
@@ -11,7 +12,7 @@
 //     (H 0-360, S/V/A 0-100), mirroring GTK's long-press spinbutton popovers.
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Color, GTK_DEFAULT_PALETTE } from '../../compose/style/color'
+import { Color, COLOR_PICKER_SWATCHES } from '../../compose/style/color'
 import RnoteIcon from '../icons/RnoteIcon.vue'
 import RnTextInput from './RnTextInput.vue'
 
@@ -58,7 +59,9 @@ function saveCustom() {
   }
 }
 
-const flatPalette = computed(() => GTK_DEFAULT_PALETTE.flat())
+// Keep the palette order identical to rnote-compose/src/color.rs instead of
+// substituting GtkColorChooserWidget's unrelated hue-first default order.
+const flatPalette = computed(() => COLOR_PICKER_SWATCHES.flat())
 
 // --- colour helpers ---
 function sameRgb(x: Color, y: Color) {
@@ -72,7 +75,7 @@ function sameRgba(x: Color, y: Color) {
   return p[0] === q[0] && p[1] === q[1] && p[2] === q[2] && p[3] === q[3]
 }
 function isDefaultColor(c: Color) {
-  return GTK_DEFAULT_PALETTE.some((g) => g.some((q) => sameRgb(q, c)))
+  return COLOR_PICKER_SWATCHES.some((g) => g.some((q) => sameRgb(q, c)))
 }
 function tickColor(c: Color) {
   if (c.a === 0) return 'var(--fg)'
